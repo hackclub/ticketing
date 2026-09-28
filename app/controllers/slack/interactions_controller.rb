@@ -28,7 +28,7 @@ module Slack
         template: "slack/tickets/new",
         formats: [ :slack_modal ],
         locals: {
-          services: Service.active.includes(:topics).order(:name),
+          services: Service.active.fallback_last.includes(:topics),
           initial_message: SlackText.to_markdown(message&.dig("text"), client: SlackNotifier.reader).presence,
           initial_url: message && permalink_for(channel, message["ts"])
         }

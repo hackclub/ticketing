@@ -6,7 +6,7 @@ class TicketsController < ApplicationController
 
   def new
     @ticket = Ticket.new
-    @services = Service.active.includes(:topics).order(:name)
+    @services = Service.active.fallback_last.includes(:topics)
   end
 
   def create
@@ -15,7 +15,7 @@ class TicketsController < ApplicationController
     if @ticket.save
       redirect_to @ticket, notice: "Ticket submitted."
     else
-      @services = Service.active.includes(:topics).order(:name)
+      @services = Service.active.fallback_last.includes(:topics)
       render :new, status: :unprocessable_entity
     end
   end

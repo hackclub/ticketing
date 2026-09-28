@@ -12,14 +12,14 @@ class Admin::TopicsController < Admin::BaseController
   end
 
   def edit
-    @services = Service.order(:name)
+    @services = Service.fallback_last
   end
 
   def update
     if @topic.update(topic_params)
       redirect_to admin_services_path, notice: "Topic updated."
     else
-      @services = Service.order(:name)
+      @services = Service.fallback_last
       render :edit, status: :unprocessable_entity
     end
   end

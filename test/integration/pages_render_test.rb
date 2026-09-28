@@ -47,6 +47,19 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "the catch-all service is offered last on the new-ticket form" do
+    other = Service.create!(name: "Other")
+    other.topics.create!(name: "General Request")
+    sign_in(users(:requester))
+
+    get new_ticket_path
+
+    assert_response :success
+    options = css_select("#ticket_service_id option").map(&:text)
+    assert_includes options, "Other"
+    assert_equal "Other", options.last
+  end
+
   test "every page an admin can reach renders" do
     sign_in(users(:amber))
 

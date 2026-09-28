@@ -305,7 +305,7 @@ class McpServer
 
   # Admins also see retired entries, since they're the ones who manage them.
   def list_services
-    services = (user.admin? ? Service.all : Service.active).includes(:topics).order(:name)
+    services = (user.admin? ? Service.all : Service.active).fallback_last.includes(:topics)
     return "No services are configured yet." if services.empty?
 
     services.map do |service|

@@ -2,7 +2,7 @@ class Admin::ServicesController < Admin::BaseController
   before_action :set_service, only: [ :edit, :update, :destroy ]
 
   def index
-    @services = Service.includes(:topics).order(:name)
+    @services = Service.fallback_last.includes(:topics)
   end
 
   def create
