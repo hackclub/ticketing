@@ -28,6 +28,23 @@ class User < ApplicationRecord
     end
   end
 
+  # An admin sees every ticket and can manage everybody, so it comes with a
+  # queue of their own whether or not they had one.
+  def make_admin!
+    transaction do
+      update!(admin: true)
+      start_receiving_tickets!
+    end
+  end
+
+  def revoke_admin!
+    update!(admin: false)
+  end
+
+  def configured_admin?
+    self.class.configured_admin?(self)
+  end
+
   def stop_receiving_tickets!
     update!(receives_tickets: false)
   end
@@ -109,13 +126,20 @@ class User < ApplicationRecord
 
   def self.apply_defaults(user)
     user.priority_boost = user.email.to_s.end_with?("@hackclub.com") if user.new_record?
-    user.admin = admin_emails.include?(user.email.to_s.downcase) ||
-                 admin_slack_ids.include?(user.slack_id.to_s)
+    # The environment lists only ever grant: somebody made an admin in the
+    # app keeps it when they next sign in.
+    user.admin = true if configured_admin?(user)
     # An admin runs the tracker by definition; nobody else is switched on
-    # here, since that's Amber's call to make on the person's page.
+    # here, since that's an admin's call to make on the person's page.
     user.receives_tickets = true if user.admin?
   end
   private_class_method :apply_defaults
+
+  # Admin from ADMIN_EMAILS / ADMIN_SLACK_IDS rather than from a toggle —
+  # which can't be taken away here, since the next sign-in would restore it.
+  def self.configured_admin?(user)
+    admin_emails.include?(user.email.to_s.downcase) || admin_slack_ids.include?(user.slack_id.to_s)
+  end
 
   def self.extract_slack_id(auth)
     auth.info["slack_id"] || auth.extra&.raw_info&.slack_id

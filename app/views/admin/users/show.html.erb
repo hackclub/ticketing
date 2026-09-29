@@ -43,6 +43,30 @@
   <% end %>
 </div>
 
+<div class="bg-orange-50 border-2 border-dashed border-orange-400 rounded-lg p-4 mb-8 max-w-sm">
+  <%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "flex items-center justify-between gap-4" do |f| %>
+    <div>
+      <%= f.label :admin, "Make them an admin", class: "font-medium text-orange-900 text-sm" %>
+      <p class="text-xs text-orange-800">
+        Admins see every ticket, manage people, and can let others in. It comes with a queue of their own.
+      </p>
+    </div>
+    <%= f.check_box :admin, class: "rounded border-orange-300 size-5",
+          disabled: @user == current_user || (@user.admin? && @user.configured_admin?),
+          onchange: "this.form.requestSubmit()" %>
+  <% end %>
+
+  <% if @user == current_user %>
+    <p class="text-xs text-orange-800 mt-3 pt-3 border-t border-orange-200">
+      This is you — another admin has to be the one to change it.
+    </p>
+  <% elsif @user.admin? && @user.configured_admin? %>
+    <p class="text-xs text-orange-800 mt-3 pt-3 border-t border-orange-200">
+      Set by <code>ADMIN_EMAILS</code>/<code>ADMIN_SLACK_IDS</code>, so it can only be taken away there.
+    </p>
+  <% end %>
+</div>
+
 <h2 class="text-lg font-semibold mb-3">Tickets they filed</h2>
 
 <% if @tickets.empty? %>

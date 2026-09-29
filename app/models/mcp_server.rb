@@ -295,6 +295,20 @@ class McpServer
         }
       },
       {
+        "name" => "set_admin",
+        "description" => "Make somebody an admin, or take it away. Admins see every ticket, manage people and " \
+                         "can let others in, and they get a queue of their own. You can't change your own, and " \
+                         "somebody who is an admin through ADMIN_EMAILS or ADMIN_SLACK_IDS has to be removed there.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "person" => { "type" => "string", "description" => "Name or email from list_people" },
+            "admin" => { "type" => "boolean" }
+          },
+          "required" => [ "person", "admin" ]
+        }
+      },
+      {
         "name" => "enable_tickets",
         "description" => "Let someone use the tracker for themselves, or stop them. Enabled, they get a queue of " \
                          "their own: people can file tickets to them, they can file their own, and Slack and " \
@@ -330,6 +344,7 @@ class McpServer
     when "list_people" then list_people
     when "set_vip" then set_vip(args)
     when "enable_tickets" then enable_tickets(args)
+    when "set_admin" then set_admin(args)
     when "set_priority" then set_priority(args)
     when "set_deadline" then set_deadline(args)
     when "block_ticket" then block_ticket(args)
@@ -503,6 +518,23 @@ class McpServer
     person.update!(priority_boost: args["vip"])
 
     "#{person.name.presence || person.email} is #{person.priority_boost? ? 'now a VIP — their tickets sort to the top' : 'no longer a VIP'}."
+  end
+
+  def set_admin(args)
+    person, refusal = find_person(args["person"])
+    return refusal if refusal
+
+    wanted = ActiveModel::Type::Boolean.new.cast(args["admin"])
+    return [ "You can't change your own admin access — ask another admin." ] if person == user
+    return "#{person.display_name} is #{'already ' if wanted}#{'not ' unless wanted}an admin." if wanted == person.admin?
+
+    if !wanted && person.configured_admin?
+      return [ "#{person.display_name} is an admin through ADMIN_EMAILS or ADMIN_SLACK_IDS, so it would come " \
+               "back at their next sign-in. Take them off that list instead." ]
+    end
+
+    wanted ? person.make_admin! : person.revoke_admin!
+    wanted ? "#{person.display_name} is an admin now, with a queue of their own." : "#{person.display_name} is no longer an admin."
   end
 
   def enable_tickets(args)

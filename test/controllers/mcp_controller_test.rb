@@ -563,6 +563,33 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     refute @requester.reload.receives_tickets?
   end
 
+  test "an admin can hand out admin from here" do
+    call_tool("set_admin", { "person" => @requester.email, "admin" => true }, token: @admin_token)
+
+    assert @requester.reload.admin?
+    assert @requester.receives_tickets?
+
+    call_tool("set_admin", { "person" => @requester.email, "admin" => false }, token: @admin_token)
+
+    refute @requester.reload.admin?
+  end
+
+  test "you can't make yourself not an admin" do
+    call_tool("set_admin", { "person" => users(:amber).email, "admin" => false }, token: @admin_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert users(:amber).reload.admin?
+  end
+
+  test "nobody else can hand out admin" do
+    owner = another_owner
+
+    call_tool("set_admin", { "person" => @requester.email, "admin" => true }, token: owner.regenerate_api_token!)
+
+    assert response.parsed_body.dig("result", "isError")
+    refute @requester.reload.admin?
+  end
+
   test "nobody else can let themselves in" do
     owner = another_owner
 
