@@ -1,7 +1,9 @@
 website:
   name: Website
+  owner: amber
   active: true
 
 slack:
   name: Slack
+  owner: amber
   active: true

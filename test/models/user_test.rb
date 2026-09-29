@@ -90,4 +90,64 @@ class UserTest < ActiveSupport::TestCase
 
     assert user.admin?
   end
+
+  # --- letting somebody else use the tracker ------------------------------
+
+  test "enabling someone gives them a queue and something to be filed under" do
+    person = users(:requester)
+
+    person.start_receiving_tickets!
+
+    assert person.reload.receives_tickets?
+    assert_equal [ "Other" ], person.services.map(&:name)
+    assert_equal [ "General Request" ], person.services.first.topics.map(&:name)
+  end
+
+  test "enabling someone twice doesn't pile up services" do
+    person = users(:requester)
+
+    person.start_receiving_tickets!
+    person.start_receiving_tickets!
+
+    assert_equal 1, person.services.count
+    assert_equal 1, person.services.first.topics.count
+  end
+
+  test "switching someone off leaves their tickets alone" do
+    person = users(:requester)
+    person.start_receiving_tickets!
+    ticket = ticket_for(person)
+
+    person.stop_receiving_tickets!
+
+    refute person.reload.receives_tickets?
+    assert_equal person, ticket.reload.owner
+  end
+
+  test "switching someone off stops anything new being filed to them" do
+    person = users(:requester)
+    person.start_receiving_tickets!
+    assert_includes Service.fileable, person.services.first
+
+    person.stop_receiving_tickets!
+
+    refute_includes Service.fileable, person.services.first
+  end
+
+  test "an admin takes tickets without being switched on" do
+    user = User.from_omniauth(OmniAuth::AuthHash.new(
+      uid: "sub_new_admin", info: { email: "amber@hackclub.com", name: "Amber" }
+    ))
+
+    assert user.admin?
+    assert user.receives_tickets?
+  end
+
+  test "everyone else starts off not taking tickets" do
+    user = User.from_omniauth(OmniAuth::AuthHash.new(
+      uid: "sub_someone", info: { email: "someone-else@example.com", name: "Someone" }
+    ))
+
+    refute user.receives_tickets?
+  end
 end

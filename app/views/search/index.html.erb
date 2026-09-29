@@ -24,9 +24,9 @@
             data: { turbo_frame: "_top", palette_item: "", action: "click->command-palette#close" } do %>
         <span class="text-xs text-gray-400 font-mono shrink-0">#<%= ticket.id %></span>
         <span class="flex-1 min-w-0 truncate text-sm text-gray-900"><%= ticket.title %></span>
-        <% if admin? %>
-          <span class="text-xs text-gray-400 truncate shrink-0 max-w-[10rem]"><%= ticket.user.name.presence || ticket.user.email %></span>
-        <% end %>
+        <span class="text-xs text-gray-400 truncate shrink-0 max-w-[10rem]">
+          <%= manages?(ticket) ? ticket.user.display_name : "for #{ticket.owner.display_name}" %>
+        </span>
         <span class="text-xs px-2 py-0.5 rounded-full shrink-0 <%= status_badge_classes(ticket.status) %>"><%= ticket.status_label %></span>
       <% end %>
     <% end %>

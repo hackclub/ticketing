@@ -20,7 +20,7 @@ class SearchController < ApplicationController
   private
 
   def matching_tickets
-    scope = (admin? ? Ticket.all : current_user.tickets).includes(:user, :service, :topic, :blockers)
+    scope = searchable_tickets.includes(:user, :owner, :service, :topic, :blockers)
 
     # An empty box is a launcher, not a dead end: show what's been touched most
     # recently, since that's usually what you came back for.
@@ -34,6 +34,13 @@ class SearchController < ApplicationController
     scope.where("tickets.title ILIKE :like OR tickets.message ILIKE :like", like: like)
          .order(Arel.sql(title_matches_first))
          .limit(TICKET_LIMIT)
+  end
+
+  # The same rule as the tickets index: yours to deal with, or yours to chase.
+  def searchable_tickets
+    return Ticket.all if admin?
+
+    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
   end
 
   def matching_people
@@ -51,7 +58,8 @@ class SearchController < ApplicationController
       [ "All tickets", tickets_path(status: "all") ],
       [ "Settings", settings_path ]
     ]
-    list += [ [ "Services & topics", admin_services_path ], [ "People", admin_users_path ] ] if admin?
+    list << [ "Services & topics", services_path ] if owner?
+    list << [ "People", admin_users_path ] if admin?
 
     return list if @term.blank?
 

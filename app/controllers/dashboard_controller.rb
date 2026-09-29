@@ -4,8 +4,9 @@ class DashboardController < ApplicationController
   def index
     return unless current_user
 
-    if admin?
-      @tickets = Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic, :blockers)
+    if owner?
+      @tickets = Ticket.owned_by(current_user).needs_attention.ordered_for_admin
+                       .includes(:user, :service, :topic, :blockers)
     else
       @tickets = current_user.tickets.order(created_at: :desc).includes(:service, :topic, :blockers)
     end

@@ -1,5 +1,7 @@
 class Ticket < ApplicationRecord
+  # user is whoever filed it; owner is whoever has to do something about it.
   belongs_to :user
+  belongs_to :owner, class_name: "User"
   belongs_to :service
   belongs_to :topic
 
@@ -52,12 +54,17 @@ class Ticket < ApplicationRecord
     STATUS_SENTENCES.fetch(status, status.humanize.downcase)
   end
 
+  # The service decides who the ticket is for, so the two can never disagree
+  # and no form has to ask twice.
+  before_validation :inherit_owner_from_service
+
   validates :title, presence: true
   validates :message, presence: true
   validate :topic_belongs_to_service
   validate :url_must_be_http_or_https
 
   scope :needs_attention, -> { where(status: [ :open, :in_progress ]) }
+  scope :owned_by, ->(user) { where(owner_id: user.id) }
   scope :closed, -> { where(status: [ :done, :wont_do ]) }
 
   # Whether anything unfinished is standing in this ticket's way, as SQL, so
@@ -154,7 +161,18 @@ class Ticket < ApplicationRecord
   # aren't filtered out here — TicketBlock rejects those with a message that
   # explains which chain the link would close.
   def blocker_candidates
-    Ticket.needs_attention.where.not(id: [ id, *blockers.ids ].compact).order(created_at: :desc)
+    return Ticket.none if owner.nil?
+
+    Ticket.owned_by(owner).needs_attention.where.not(id: [ id, *blockers.ids ].compact).order(created_at: :desc)
+  end
+
+  # Whose job it is to deal with this, versus who is merely allowed to read it.
+  def managed_by?(user)
+    user.present? && (user.admin? || owner_id == user.id)
+  end
+
+  def visible_to?(user)
+    user.present? && (managed_by?(user) || user_id == user.id)
   end
 
   # Short enough for an error message or a Slack line.
@@ -163,6 +181,10 @@ class Ticket < ApplicationRecord
   end
 
   private
+
+  def inherit_owner_from_service
+    self.owner_id = service.owner_id if service.present?
+  end
 
   def notify_created
     TicketMailer.created(self).deliver_later

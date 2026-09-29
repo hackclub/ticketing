@@ -45,6 +45,35 @@ module ActiveSupport
 
     include ActionMailer::TestHelper
 
+    # Somebody else Amber has let in: their own queue, their own catch-all
+    # service, and nothing to do with hers.
+    def another_owner(name: "Bo Owner", email: "bo@example.com")
+      # The :developer strategy uses the email as the uid, same as the
+      # fixtures, so signing in as them finds this row rather than making
+      # a second one.
+      user = User.create!(sub: email, email: email, name: name)
+      user.start_receiving_tickets!
+      user
+    end
+
+    def ticket_for(owner, requester: nil, title: "Something for you", **attributes)
+      service = owner.services.first
+      Ticket.create!(
+        user: requester || owner, service: service, topic: service.topics.first,
+        title: title, message: "Details here.", **attributes
+      )
+    end
+
+    # Slack calls no-op without a token, which is what dev and most tests
+    # want — but not a test about who gets the message.
+    def with_slack_enabled
+      was = ENV["SLACK_BOT_TOKEN"]
+      ENV["SLACK_BOT_TOKEN"] = "xoxb-test"
+      yield
+    ensure
+      ENV["SLACK_BOT_TOKEN"] = was
+    end
+
     # Minitest 6 dropped Object#stub, and this is the only seam we need.
     def with_slack_client(client = FakeSlackClient.new)
       original = SlackNotifier.method(:client)

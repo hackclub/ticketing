@@ -3,9 +3,15 @@ submit "Create"
 close "Cancel"
 callback "create_ticket"
 
+# Whoever owns the service is who the ticket goes to, so once more than one
+# person is taking tickets the group labels have to say whose is whose.
+many_owners = services.map(&:owner_id).uniq.size > 1
+
 topic_groups = services.map do |service|
+  label = many_owners ? "#{service.owner.display_name} · #{service.name}" : service.name
+
   option_group(
-    service.name,
+    label.truncate(75),
     service.topics.select(&:active?).map { |topic| option(topic.name, "#{service.id}:#{topic.id}") }
   )
 end.reject { |group| group[:options].empty? }

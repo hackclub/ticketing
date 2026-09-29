@@ -1,4 +1,4 @@
-<% title = admin? ? "All tickets" : "Your tickets" %>
+<% title = admin? ? "All tickets" : owner? ? "Tickets" : "Your tickets" %>
 <div class="flex items-center justify-between gap-4 mb-4 flex-wrap">
   <h1 class="text-2xl font-bold"><%= title %></h1>
   <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>

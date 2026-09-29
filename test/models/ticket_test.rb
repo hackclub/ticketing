@@ -246,4 +246,80 @@ class TicketTest < ActiveSupport::TestCase
 
     assert_operator ticket.reference.length, :<=, 75
   end
+
+  # --- who a ticket is for ------------------------------------------------
+
+  test "a ticket belongs to whoever owns the service it was filed under" do
+    owner = another_owner
+    service = owner.services.first
+
+    ticket = Ticket.create!(valid_attributes.merge(service: service, topic: service.topics.first))
+
+    assert_equal owner, ticket.owner
+  end
+
+  test "moving a ticket to another service moves who it's for" do
+    owner = another_owner
+    ticket = Ticket.create!(valid_attributes)
+    assert_equal users(:amber), ticket.owner
+
+    ticket.update!(service: owner.services.first, topic: owner.services.first.topics.first)
+
+    assert_equal owner, ticket.reload.owner
+  end
+
+  test "only the person it's for — or an admin — manages a ticket" do
+    owner = another_owner
+    ticket = ticket_for(owner, requester: users(:requester))
+
+    assert ticket.managed_by?(owner)
+    assert ticket.managed_by?(users(:amber))
+    refute ticket.managed_by?(users(:requester))
+    refute ticket.managed_by?(nil)
+  end
+
+  test "the person who filed it can read it without managing it" do
+    owner = another_owner
+    ticket = ticket_for(owner, requester: users(:requester))
+
+    assert ticket.visible_to?(users(:requester))
+    refute ticket.managed_by?(users(:requester))
+  end
+
+  test "somebody with nothing to do with a ticket can't see it" do
+    owner = another_owner
+    ticket = ticket_for(owner)
+    stranger = User.create!(sub: "sub_stranger", email: "stranger@example.com", name: "Stranger")
+
+    refute ticket.visible_to?(stranger)
+  end
+
+  test "each queue is ordered on its own" do
+    owner = another_owner
+    mine = Ticket.create!(valid_attributes)
+    theirs = ticket_for(owner)
+
+    assert_includes Ticket.owned_by(users(:amber)).needs_attention, mine
+    refute_includes Ticket.owned_by(users(:amber)).needs_attention, theirs
+    assert_includes Ticket.owned_by(owner).needs_attention, theirs
+  end
+
+  test "blockers can only come from the same queue" do
+    owner = another_owner
+    theirs = ticket_for(owner)
+    mine = Ticket.create!(valid_attributes)
+
+    refute_includes theirs.blocker_candidates, mine
+    assert_includes mine.blocker_candidates, tickets(:website_bug)
+  end
+
+  test "the new ticket is emailed to whoever it is for" do
+    owner = another_owner
+
+    perform_enqueued_jobs only: ActionMailer::MailDeliveryJob do
+      ticket_for(owner, requester: users(:requester))
+    end
+
+    assert_equal [ owner.email ], ActionMailer::Base.deliveries.last.to
+  end
 end

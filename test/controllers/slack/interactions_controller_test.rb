@@ -350,6 +350,46 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal was.to_i, ticket.reload.due_at.to_i
   end
 
+  test "an enabled person can triage their own ticket from Slack" do
+    owner = another_owner
+    owner.update!(slack_id: "U000BO")
+    ticket = ticket_for(owner, requester: users(:requester))
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: "U000BO" },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:done",
+          state: { values: { note: { note: { value: "Sorted." } } } }
+        }
+      )
+    end
+
+    assert ticket.reload.done?
+  end
+
+  test "an enabled person can't triage somebody else's" do
+    owner = another_owner
+    owner.update!(slack_id: "U000BO")
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: "U000BO" },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:done",
+          state: { values: {} }
+        }
+      )
+    end
+
+    refute ticket.reload.done?
+  end
+
   private
 
   def submission_payload

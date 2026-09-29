@@ -1,5 +1,10 @@
 class User < ApplicationRecord
+  # Tickets they filed, and — for someone who runs a queue of their own —
+  # the tickets filed to them and the services those are filed under.
   has_many :tickets, dependent: :destroy
+  has_many :owned_tickets, class_name: "Ticket", foreign_key: :owner_id, dependent: :restrict_with_error,
+           inverse_of: :owner
+  has_many :services, foreign_key: :owner_id, dependent: :restrict_with_error, inverse_of: :owner
   has_many :oauth_tokens, dependent: :delete_all
   has_many :oauth_grants, dependent: :delete_all
 
@@ -7,9 +12,29 @@ class User < ApplicationRecord
   validates :email, presence: true
 
   scope :admins, -> { where(admin: true) }
+  scope :ticket_owners, -> { where(receives_tickets: true) }
   scope :on_slack, -> { where.not(slack_id: [ nil, "" ]) }
 
   TOKEN_PREFIX = "tkt_".freeze
+
+  # Turning this on is what "letting someone use the tracker" means: people
+  # can file to them, they can file to themselves, and Slack and the MCP
+  # tools start working against their queue. Nobody can be filed to without
+  # at least one service, so they get the catch-all to start with.
+  def start_receiving_tickets!
+    transaction do
+      update!(receives_tickets: true)
+      Service.fallback_for(self)
+    end
+  end
+
+  def stop_receiving_tickets!
+    update!(receives_tickets: false)
+  end
+
+  def display_name
+    name.presence || email
+  end
 
   # Personal access token for the MCP endpoint. Only the digest is stored, so
   # the raw token is shown once at generation time and can't be recovered.
@@ -86,6 +111,9 @@ class User < ApplicationRecord
     user.priority_boost = user.email.to_s.end_with?("@hackclub.com") if user.new_record?
     user.admin = admin_emails.include?(user.email.to_s.downcase) ||
                  admin_slack_ids.include?(user.slack_id.to_s)
+    # An admin runs the tracker by definition; nobody else is switched on
+    # here, since that's Amber's call to make on the person's page.
+    user.receives_tickets = true if user.admin?
   end
   private_class_method :apply_defaults
 

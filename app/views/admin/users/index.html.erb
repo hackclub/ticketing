@@ -9,6 +9,7 @@
           <%= user.name.presence || user.email %>
           <% if user.admin? %><span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">admin</span><% end %>
           <% if user.priority_boost? %><span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">VIP</span><% end %>
+          <% if user.receives_tickets? && !user.admin? %><span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">takes tickets</span><% end %>
         </p>
         <p class="text-sm text-gray-500"><%= user.email %> &middot; <%= pluralize(user.tickets.size, "ticket") %></p>
       </div>

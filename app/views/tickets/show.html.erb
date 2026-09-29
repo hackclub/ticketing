@@ -8,9 +8,14 @@
 
   <p class="text-sm text-gray-500 mb-6">
     <%= @ticket.service.name %> &rsaquo; <%= @ticket.topic.name %> &middot;
+    for <%= @ticket.owner_id == current_user.id ? "you" : @ticket.owner.display_name %> &middot;
     filed by
-    <% if admin? %>
-      <%= link_to (@ticket.user.name.presence || @ticket.user.email), admin_user_path(@ticket.user), class: "underline" %>
+    <% if manages?(@ticket) %>
+      <% if admin? %>
+        <%= link_to @ticket.user.display_name, admin_user_path(@ticket.user), class: "underline" %>
+      <% else %>
+        <%= @ticket.user.display_name %>
+      <% end %>
       <% if (dm_url = slack_dm_url(@ticket.user)) %>
         &middot; <%= link_to "Message on Slack", dm_url, class: "text-blue-600 hover:underline", target: "_blank", rel: "noopener noreferrer" %>
       <% end %>
@@ -35,13 +40,13 @@
   <%= render "tickets/status_note", ticket: @ticket %>
 
   <%# Requesters see that something is in the way, but not whose ticket it is. %>
-  <% if !admin? && @ticket.blocked? %>
+  <% if !manages?(@ticket) && @ticket.blocked? %>
     <p class="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
       Waiting on <%= pluralize(@ticket.outstanding_blockers.count, "other ticket") %> to be finished first.
     </p>
   <% end %>
 
-  <% if admin? %>
+  <% if manages?(@ticket) %>
     <%= render "tickets/scheduling", ticket: @ticket %>
 
     <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">

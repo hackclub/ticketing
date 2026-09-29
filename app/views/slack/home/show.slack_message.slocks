@@ -3,7 +3,7 @@ status_emoji = { "open" => "🟡", "in_progress" => "🔵", "done" => "🟢", "w
 status_label = ->(status) { "#{status_emoji[status]} #{Ticket.status_label(status)}".strip }
 priority_labels = { "low" => "Low", "medium" => "Medium", "high" => "High", "urgent" => "🔴 Urgent" }
 
-if user&.admin?
+if user&.receives_tickets?
   header "Everything on your plate"
   section(
     tickets.any? ? "*#{tickets.size}* open and in-progress #{'ticket'.pluralize(tickets.size)}, VIP requesters and higher priority first." : "Nothing outstanding right now. 🎉",
@@ -22,11 +22,11 @@ actions [
   button("Open on the web", "open_web", url: SlackNotifier.url_for_path("/"))
 ]
 
-if user&.admin?
+if user&.receives_tickets?
   context [
     mrkdwn_text(
-      "Manage <#{SlackNotifier.url_for_path('/admin/services')}|services and topics> and " \
-      "<#{SlackNotifier.url_for_path('/admin/users')}|people> on the web."
+      "Manage <#{SlackNotifier.url_for_path('/services')}|your services and topics> on the web" +
+      (user.admin? ? ", along with <#{SlackNotifier.url_for_path('/admin/users')}|people>." : ".")
     )
   ]
 end
@@ -37,7 +37,7 @@ tickets.each do |ticket|
   requester = ticket.user.slack_id.presence ? "<@#{ticket.user.slack_id}>" : "*#{ticket.user.name.presence || ticket.user.email}*"
 
   details = [
-    (requester if user&.admin?),
+    (requester if user&.receives_tickets?),
     "#{ticket.service.name} ▸ #{ticket.topic.name}",
     priority_labels[ticket.priority],
     ("⏰ #{ticket.due_label}" if ticket.due_at.present?),
@@ -47,7 +47,7 @@ tickets.each do |ticket|
 
   text = "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*\n#{details}"
 
-  if user&.admin?
+  if user&.receives_tickets?
     status_options = Ticket.statuses.keys.map { |status| option(status_label.call(status), "#{ticket.id}:#{status}") }
 
     section(

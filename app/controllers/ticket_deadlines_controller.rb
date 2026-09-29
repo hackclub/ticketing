@@ -1,8 +1,8 @@
 class TicketDeadlinesController < ApplicationController
   include TicketStreams
 
-  before_action :require_admin!
   before_action :set_ticket
+  before_action :require_manage!
 
   def update
     due = params.dig(:ticket, :due_at)
@@ -35,5 +35,11 @@ class TicketDeadlinesController < ApplicationController
 
   def set_ticket
     @ticket = Ticket.find(params[:ticket_id])
+  end
+
+  def require_manage!
+    return if manages?(@ticket)
+
+    redirect_to root_path, alert: "You don't have access to that ticket."
   end
 end

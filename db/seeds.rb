@@ -9,8 +9,13 @@ SERVICES = {
   "Other" => [ "General Request" ]
 }.freeze
 
+# Services belong to whoever takes the tickets filed under them, so seeding
+# needs somebody to own them.
+owner = User.admins.first || User.first
+abort "Seed an admin first: no user to own these services." if owner.nil?
+
 SERVICES.each do |service_name, topic_names|
-  service = Service.find_or_create_by!(name: service_name)
+  service = owner.services.find_or_create_by!(name: service_name)
 
   topic_names.each do |topic_name|
     service.topics.find_or_create_by!(name: topic_name)

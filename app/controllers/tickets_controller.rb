@@ -19,7 +19,7 @@ class TicketsController < ApplicationController
 
   def new
     @ticket = Ticket.new
-    @services = Service.active.fallback_last.includes(:topics)
+    @services = Service.fileable.fallback_last
   end
 
   def create
@@ -28,7 +28,7 @@ class TicketsController < ApplicationController
     if @ticket.save
       redirect_to @ticket, notice: "Ticket submitted."
     else
-      @services = Service.active.fallback_last.includes(:topics)
+      @services = Service.fileable.fallback_last
       render :new, status: :unprocessable_entity
     end
   end
@@ -37,8 +37,8 @@ class TicketsController < ApplicationController
   end
 
   def update
-    unless admin?
-      return redirect_to @ticket, alert: "Only an admin can update a ticket's status."
+    unless manages?(@ticket)
+      return redirect_to @ticket, alert: "Only the person a ticket is for can update its status."
     end
 
     status = status_params[:status]
@@ -62,14 +62,21 @@ class TicketsController < ApplicationController
   # the queue's ordering (blocked last, deadlines first); closed ones are
   # most-recently-touched first, which is how you look for what you just did.
   def filtered_tickets
-    scope = admin? ? Ticket.all : current_user.tickets
-    scope = scope.includes(:user, :service, :topic, :blockers)
+    scope = visible_tickets.includes(:user, :owner, :service, :topic, :blockers)
 
     case @filter
-    when "open" then admin? ? scope.needs_attention.ordered_for_admin : scope.needs_attention.order(created_at: :desc)
+    when "open" then owner? ? scope.needs_attention.ordered_for_admin : scope.needs_attention.order(created_at: :desc)
     when "closed" then scope.closed.order(updated_at: :desc)
     else scope.order(created_at: :desc)
     end
+  end
+
+  # An admin sees the lot; anyone else sees what's theirs to deal with plus
+  # whatever they filed themselves.
+  def visible_tickets
+    return Ticket.all if admin?
+
+    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
   end
 
   def respond_with_status_change(updated, error:)
@@ -104,7 +111,7 @@ class TicketsController < ApplicationController
   end
 
   def authorize_ticket!
-    return if admin? || @ticket.user_id == current_user.id
+    return if @ticket.visible_to?(current_user)
 
     redirect_to root_path, alert: "You don't have access to that ticket."
   end

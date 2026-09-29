@@ -2,7 +2,7 @@ class TicketMailer < ApplicationMailer
   def created(ticket)
     @ticket = ticket
 
-    mail to: User.admin_emails, subject: "New ticket: #{ticket.title}"
+    mail to: ticket.owner.email, subject: "New ticket: #{ticket.title}"
   end
 
   def status_changed(ticket)

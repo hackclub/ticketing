@@ -8,7 +8,7 @@ class ApplicationController < ActionController::Base
   before_action :start_request_timer
   before_action :require_login
 
-  helper_method :current_user, :admin?
+  helper_method :current_user, :admin?, :owner?, :manages?
 
   private
 
@@ -30,6 +30,16 @@ class ApplicationController < ActionController::Base
     current_user&.admin? || false
   end
 
+  # Someone who runs a queue of their own: tickets can be filed to them, and
+  # they can triage what lands there.
+  def owner?
+    current_user&.receives_tickets? || false
+  end
+
+  def manages?(ticket)
+    ticket.managed_by?(current_user)
+  end
+
   def require_login
     return if current_user
 
@@ -43,5 +53,11 @@ class ApplicationController < ActionController::Base
     return if admin?
 
     redirect_to root_path, alert: "You don't have access to that."
+  end
+
+  def require_owner!
+    return if owner?
+
+    redirect_to root_path, alert: "You don't have a ticket queue of your own."
   end
 end

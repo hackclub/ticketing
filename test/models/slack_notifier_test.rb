@@ -68,4 +68,45 @@ class SlackNotifierTest < ActiveSupport::TestCase
 
     assert_match "datetimepicker", rendered
   end
+
+  test "a new ticket is DM'd to whoever it's for, not to every admin" do
+    owner = another_owner
+    owner.update!(slack_id: "U000BO")
+    client = FakeSlackClient.new
+
+    with_slack_enabled do
+      with_slack_client(client) do
+        SlackNotifier.ticket_created(ticket_for(owner, requester: users(:requester)))
+      end
+    end
+
+    assert_equal [ "U000BO" ], client.calls[:chat_postMessage].map { |call| call[:channel] }
+  end
+
+  test "the Home tab shows an enabled person their own queue" do
+    owner = another_owner
+    owner.update!(slack_id: "U000BO")
+    ticket_for(owner, requester: users(:requester), title: "Filed to Bo")
+
+    rendered = ApplicationController.render(
+      template: "slack/home/show", formats: [ :slack_message ],
+      locals: { user: owner, tickets: Ticket.owned_by(owner).needs_attention, slack_user_id: owner.slack_id }
+    )
+
+    assert_match "Filed to Bo", rendered
+    assert_match "Everything on your plate", rendered
+    assert_no_match(/#{tickets(:website_bug).title}/, rendered)
+  end
+
+  test "the new-ticket modal says whose services are whose once there are two" do
+    another_owner
+
+    rendered = ApplicationController.render(
+      template: "slack/tickets/new", formats: [ :slack_modal ],
+      locals: { services: Service.fileable.fallback_last, initial_message: nil, initial_url: nil }
+    )
+
+    assert_match "Bo Owner · Other", rendered
+    assert_match "#{users(:amber).display_name} · Website", rendered
+  end
 end

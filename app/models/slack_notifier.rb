@@ -21,9 +21,9 @@ class SlackNotifier
     end
 
     def ticket_created(ticket)
-      User.admins.on_slack.find_each do |admin|
-        dm(admin.slack_id, "New ticket: #{ticket.title}", "slack/notifications/ticket_created", ticket: ticket)
-      end
+      return if ticket.owner.slack_id.blank?
+
+      dm(ticket.owner.slack_id, "New ticket: #{ticket.title}", "slack/notifications/ticket_created", ticket: ticket)
     end
 
     def ticket_status_changed(ticket)
@@ -55,8 +55,9 @@ class SlackNotifier
     private
 
     def home_tickets(user)
-      if user&.admin?
-        Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic, :blockers).limit(40)
+      if user&.receives_tickets?
+        Ticket.owned_by(user).needs_attention.ordered_for_admin
+              .includes(:user, :service, :topic, :blockers).limit(40)
       elsif user
         user.tickets.order(created_at: :desc).includes(:service, :topic, :blockers).limit(40)
       else

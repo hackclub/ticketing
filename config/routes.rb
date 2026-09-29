@@ -14,11 +14,13 @@ Rails.application.routes.draw do
   # Backs the ⌘K palette. GET so a result list is just a page.
   get "/search", to: "search#index", as: :search
 
+  # Services and topics are managed together on the services page, so there
+  # are no standalone "new" screens. They belong to whoever takes the tickets
+  # filed under them, which is why they aren't admin-only.
+  resources :services, except: [ :new, :show ]
+  resources :topics, only: [ :create, :edit, :update, :destroy ]
+
   namespace :admin do
-    # Services and topics are managed together on the services page, so there
-    # are no standalone "new" screens.
-    resources :services, except: [ :new ]
-    resources :topics, only: [ :create, :edit, :update, :destroy ]
     resources :users, only: [ :index, :show, :update ]
   end
 

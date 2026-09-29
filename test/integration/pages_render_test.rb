@@ -49,7 +49,7 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
   end
 
   test "the catch-all service is offered last on the new-ticket form" do
-    other = Service.create!(name: "Other")
+    other = users(:amber).services.create!(name: "Other")
     other.topics.create!(name: "General Request")
     sign_in(users(:requester))
 
@@ -69,9 +69,9 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
       new_ticket_path,
       ticket_path(tickets(:website_bug)),
       settings_path,
-      admin_services_path,
-      edit_admin_service_path(services(:website)),
-      edit_admin_topic_path(topics(:bug)),
+      services_path,
+      edit_service_path(services(:website)),
+      edit_topic_path(topics(:bug)),
       admin_users_path,
       admin_user_path(users(:requester)),
       tickets_path,

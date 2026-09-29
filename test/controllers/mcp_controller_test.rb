@@ -416,6 +416,103 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match "blocked by ##{other_persons_ticket.id}", text_content
   end
 
+  # --- once somebody else is using the tracker ----------------------------
+
+  test "an enabled person gets the queue tools; a plain requester doesn't" do
+    owner = another_owner
+    mcp_call("tools/list", token: owner.regenerate_api_token!)
+    names = response.parsed_body.dig("result", "tools").map { |tool| tool["name"] }
+
+    assert_includes names, "my_queue"
+    assert_includes names, "create_service"
+    # Running the tracker itself stays Amber's.
+    refute_includes names, "enable_tickets"
+    refute_includes names, "set_vip"
+
+    mcp_call("tools/list", token: @requester_token)
+    refute_includes response.parsed_body.dig("result", "tools").map { |tool| tool["name"] }, "my_queue"
+  end
+
+  test "my_queue is only ever your own queue" do
+    owner = another_owner
+    ticket_for(owner, requester: @requester, title: "Filed to Bo")
+
+    call_tool("my_queue", {}, token: owner.regenerate_api_token!)
+
+    assert_match "Filed to Bo", text_content
+    assert_no_match(/#{tickets(:website_bug).title}/, text_content)
+  end
+
+  test "you can't change a ticket that isn't yours" do
+    owner = another_owner
+
+    call_tool("update_ticket_status", { "id" => tickets(:website_bug).id, "status" => "done" },
+              token: owner.regenerate_api_token!)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "isn't yours", text_content
+    assert_equal "open", tickets(:website_bug).reload.status
+  end
+
+  test "services are listed by whose they are" do
+    another_owner
+
+    call_tool("list_services", {}, token: @requester_token)
+
+    assert_match "Bo Owner", text_content
+    assert_match users(:amber).display_name, text_content
+  end
+
+  test "filing under someone's service files it to them" do
+    owner = another_owner
+
+    call_tool("create_ticket", {
+      "title" => "Please look at this", "service" => "Other", "topic" => "General Request", "message" => "Thanks"
+    }, token: @requester_token)
+
+    assert_equal owner, Ticket.last.owner
+    assert_match "for Bo Owner", text_content
+  end
+
+  test "a service name two people share has to be pinned down" do
+    another_owner
+    users(:amber).services.create!(name: "Other").topics.create!(name: "General Request")
+
+    call_tool("create_ticket", {
+      "title" => "x", "service" => "Other", "topic" => "General Request", "message" => "y"
+    }, token: @requester_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "more than one person", text_content
+
+    call_tool("create_ticket", {
+      "title" => "x", "service" => "Other", "topic" => "General Request", "message" => "y", "for" => "Bo Owner"
+    }, token: @requester_token)
+
+    assert_equal "Bo Owner", Ticket.last.owner.name
+  end
+
+  test "an admin can let somebody in from here" do
+    call_tool("enable_tickets", { "person" => @requester.email, "enabled" => true }, token: @admin_token)
+
+    assert @requester.reload.receives_tickets?
+    assert_equal [ "Other" ], @requester.services.map(&:name)
+
+    call_tool("enable_tickets", { "person" => @requester.email, "enabled" => false }, token: @admin_token)
+
+    refute @requester.reload.receives_tickets?
+  end
+
+  test "nobody else can let themselves in" do
+    owner = another_owner
+
+    call_tool("enable_tickets", { "person" => @requester.email, "enabled" => true },
+              token: owner.regenerate_api_token!)
+
+    assert response.parsed_body.dig("result", "isError")
+    refute @requester.reload.receives_tickets?
+  end
+
   private
 
   def other_persons_ticket

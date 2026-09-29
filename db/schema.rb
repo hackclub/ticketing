@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_29_163243) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -60,8 +60,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.string "name", null: false
+    t.bigint "owner_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["name"], name: "index_services_on_name", unique: true
+    t.index ["owner_id", "name"], name: "index_services_on_owner_id_and_name", unique: true
+    t.index ["owner_id"], name: "index_services_on_owner_id"
   end
 
   create_table "ticket_blocks", force: :cascade do |t|
@@ -88,6 +90,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
     t.datetime "created_at", null: false
     t.datetime "due_at"
     t.text "message", null: false
+    t.bigint "owner_id", null: false
     t.integer "priority", default: 0, null: false
     t.bigint "service_id", null: false
     t.integer "status", default: 0, null: false
@@ -97,6 +100,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
     t.datetime "updated_at", null: false
     t.string "url"
     t.bigint "user_id", null: false
+    t.index ["owner_id"], name: "index_tickets_on_owner_id"
     t.index ["priority"], name: "index_tickets_on_priority"
     t.index ["service_id"], name: "index_tickets_on_service_id"
     t.index ["status"], name: "index_tickets_on_status"
@@ -121,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
     t.string "email", null: false
     t.string "name"
     t.boolean "priority_boost", default: false, null: false
+    t.boolean "receives_tickets", default: false, null: false
     t.string "slack_id"
     t.string "sub", null: false
     t.datetime "updated_at", null: false
@@ -132,6 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
   add_foreign_key "oauth_grants", "users"
   add_foreign_key "oauth_tokens", "oauth_clients"
   add_foreign_key "oauth_tokens", "users"
+  add_foreign_key "services", "users", column: "owner_id"
   add_foreign_key "ticket_blocks", "tickets", column: "blocked_ticket_id"
   add_foreign_key "ticket_blocks", "tickets", column: "blocker_ticket_id"
   add_foreign_key "ticket_notes", "tickets"
@@ -139,5 +145,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
   add_foreign_key "tickets", "services"
   add_foreign_key "tickets", "topics"
   add_foreign_key "tickets", "users"
+  add_foreign_key "tickets", "users", column: "owner_id"
   add_foreign_key "topics", "services"
 end

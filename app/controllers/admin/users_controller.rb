@@ -9,12 +9,15 @@ class Admin::UsersController < Admin::BaseController
     @tickets = @user.tickets.order(created_at: :desc).includes(:service, :topic)
   end
 
+  # Two independent switches, each posted on its own, so whichever arrives is
+  # the one that changes.
   def update
-    if @user.update(user_params)
-      redirect_to admin_user_path(@user), notice: "User updated."
-    else
-      redirect_to admin_user_path(@user), alert: @user.errors.full_messages.to_sentence
-    end
+    @user.update!(priority_boost: user_params[:priority_boost]) if user_params.key?(:priority_boost)
+    set_receiving(user_params[:receives_tickets]) if user_params.key?(:receives_tickets)
+
+    redirect_to admin_user_path(@user), notice: "#{@user.display_name} updated."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to admin_user_path(@user), alert: e.record.errors.full_messages.to_sentence
   end
 
   private
@@ -23,7 +26,15 @@ class Admin::UsersController < Admin::BaseController
     @user = User.find(params[:id])
   end
 
+  def set_receiving(value)
+    if ActiveModel::Type::Boolean.new.cast(value)
+      @user.start_receiving_tickets!
+    else
+      @user.stop_receiving_tickets!
+    end
+  end
+
   def user_params
-    params.expect(user: [ :priority_boost ])
+    params.expect(user: [ :priority_boost, :receives_tickets ])
   end
 end

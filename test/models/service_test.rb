@@ -2,8 +2,8 @@ require "test_helper"
 
 class ServiceTest < ActiveSupport::TestCase
   test "the catch-all sorts last, not alphabetically" do
-    other = Service.create!(name: "Other")
-    zebra = Service.create!(name: "Zebra")
+    other = users(:amber).services.create!(name: "Other")
+    zebra = users(:amber).services.create!(name: "Zebra")
 
     ordered = Service.fallback_last.to_a
 
@@ -12,7 +12,7 @@ class ServiceTest < ActiveSupport::TestCase
   end
 
   test "everything else stays alphabetical" do
-    Service.create!(name: "Other")
+    users(:amber).services.create!(name: "Other")
     names = Service.fallback_last.pluck(:name)
 
     assert_equal names[0..-2].sort, names[0..-2]

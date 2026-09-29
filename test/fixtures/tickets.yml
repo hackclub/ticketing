@@ -1,5 +1,6 @@
 website_bug:
   user: requester
+  owner: amber
   service: website
   topic: bug
   title: Homepage is broken

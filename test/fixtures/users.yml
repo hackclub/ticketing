@@ -8,6 +8,7 @@ amber:
   name: Amber
   slack_id: U000AMBER
   admin: true
+  receives_tickets: true
   priority_boost: true
 
 requester:
@@ -16,4 +17,5 @@ requester:
   name: Some Requester
   slack_id: ""
   admin: false
+  receives_tickets: false
   priority_boost: false

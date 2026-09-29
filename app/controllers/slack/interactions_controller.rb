@@ -28,7 +28,7 @@ module Slack
         template: "slack/tickets/new",
         formats: [ :slack_modal ],
         locals: {
-          services: Service.active.fallback_last.includes(:topics),
+          services: Service.fileable.fallback_last,
           initial_message: SlackText.to_markdown(message&.dig("text"), client: SlackNotifier.reader).presence,
           initial_url: message && permalink_for(channel, message["ts"])
         }
@@ -83,11 +83,10 @@ module Slack
     # there's somewhere to write the note that goes out with it.
     def open_status_modal(payload, action, slack_user_id)
       user = User.find_or_create_from_slack(slack_user_id, slack_client)
-      return unless user.admin?
 
       ticket_id, status = action.dig("selected_option", "value").to_s.split(":")
       ticket = Ticket.find_by(id: ticket_id)
-      return if ticket.nil?
+      return if ticket.nil? || !ticket.managed_by?(user)
 
       view = render_to_string(
         template: "slack/tickets/update",
@@ -104,7 +103,7 @@ module Slack
       ticket = Ticket.find_by(id: ticket_id)
       values = payload.dig("view", "state", "values")
 
-      if user.admin? && ticket && Ticket.statuses.key?(status)
+      if ticket&.managed_by?(user) && Ticket.statuses.key?(status)
         ticket.update(status: status, status_note: input(values, "note"), **deadline_change(values, ticket))
 
         internal = input(values, "internal_note")

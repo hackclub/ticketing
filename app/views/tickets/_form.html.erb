@@ -14,11 +14,21 @@
     <%= f.text_field :title, class: input_classes, required: true, placeholder: "Short summary" %>
   </div>
 
+  <% groups = Service.grouped_by_owner(services) %>
   <div class="grid grid-cols-2 gap-4">
     <div>
       <%= f.label :service_id, "Service", class: "block text-sm font-medium text-gray-700 mb-1" %>
-      <%= f.select :service_id, services.map { |s| [ s.name, s.id ] }, { prompt: "Select a service" },
-            id: "ticket_service_id", class: input_classes, required: true %>
+      <%# Whoever owns the service is who the ticket goes to, so the group
+          labels double as the "who is this for" question. %>
+      <% if groups.size > 1 %>
+        <%= f.select :service_id,
+              grouped_options_for_select(groups.map { |owner, owned| [ owner.display_name, owned.map { |s| [ s.name, s.id ] } ] }, ticket.service_id),
+              { prompt: "Select a service" }, id: "ticket_service_id", class: input_classes, required: true %>
+        <p class="text-xs text-gray-400 mt-1">Grouped by who picks it up.</p>
+      <% else %>
+        <%= f.select :service_id, services.map { |s| [ s.name, s.id ] }, { prompt: "Select a service" },
+              id: "ticket_service_id", class: input_classes, required: true %>
+      <% end %>
     </div>
 
     <div>

@@ -1,6 +1,6 @@
 class TicketNotesController < ApplicationController
-  before_action :require_admin!
   before_action :set_ticket
+  before_action :require_manage!
 
   def create
     @note = @ticket.notes.new(body: params.dig(:ticket_note, :body), author: current_user)
@@ -39,5 +39,11 @@ class TicketNotesController < ApplicationController
 
   def set_ticket
     @ticket = Ticket.find(params[:ticket_id])
+  end
+
+  def require_manage!
+    return if manages?(@ticket)
+
+    redirect_to root_path, alert: "You don't have access to that ticket."
   end
 end

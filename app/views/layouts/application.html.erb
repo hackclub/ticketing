@@ -30,10 +30,12 @@
           <% if current_user %>
             <%= link_to "New ticket", new_ticket_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
             <%= link_to "All tickets", tickets_path(status: "all"), class: "text-sm text-gray-600 hover:text-gray-900" %>
-            <% if admin? %>
+            <% if owner? %>
               <div class="flex items-center gap-4 border-2 border-dashed border-orange-400 bg-orange-50 rounded-lg px-3 py-1">
-                <%= link_to "Services & topics", admin_services_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
-                <%= link_to "People", admin_users_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
+                <%= link_to "Services & topics", services_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
+                <% if admin? %>
+                  <%= link_to "People", admin_users_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
+                <% end %>
               </div>
             <% end %>
           <% end %>

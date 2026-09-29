@@ -8,6 +8,7 @@
         &middot; <%= link_to "Message on Slack", dm_url, class: "text-blue-600 hover:underline", target: "_blank", rel: "noopener noreferrer" %>
       <% end %>
       <% if @user.admin? %> &middot; admin<% end %>
+      <% if @user.receives_tickets? && !@user.admin? %> &middot; takes tickets<% end %>
     </p>
   </div>
 </div>
@@ -22,7 +23,27 @@
   <% end %>
 </div>
 
-<h2 class="text-lg font-semibold mb-3">Tickets</h2>
+<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 max-w-sm">
+  <%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "flex items-center justify-between gap-4" do |f| %>
+    <div>
+      <%= f.label :receives_tickets, "Let them use the tracker", class: "font-medium text-amber-900 text-sm" %>
+      <p class="text-xs text-amber-700">
+        Gives <%= @user.name.presence || "them" %> a queue of their own: people can file tickets to them, they can
+        file their own, and Slack and the MCP tools start working against their tickets.
+      </p>
+    </div>
+    <%= f.check_box :receives_tickets, class: "rounded border-amber-300 size-5", onchange: "this.form.requestSubmit()" %>
+  <% end %>
+
+  <% if @user.receives_tickets? %>
+    <p class="text-xs text-amber-700 mt-3 pt-3 border-t border-amber-200">
+      <%= pluralize(@user.owned_tickets.size, "ticket") %> filed to them &middot;
+      <%= pluralize(@user.services.size, "service") %> of their own.
+    </p>
+  <% end %>
+</div>
+
+<h2 class="text-lg font-semibold mb-3">Tickets they filed</h2>
 
 <% if @tickets.empty? %>
   <p class="text-gray-500">No tickets yet.</p>
