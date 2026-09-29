@@ -2,7 +2,9 @@ class Admin::UsersController < Admin::BaseController
   before_action :set_user, only: [ :show, :update ]
 
   def index
-    @users = User.order(:name)
+    # One query with the counts in it, rather than one per person.
+    @users = User.left_joins(:tickets).group(:id).order(:name)
+                 .select("users.*, COUNT(tickets.id) AS filed_count")
   end
 
   def show

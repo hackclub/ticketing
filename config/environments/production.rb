@@ -24,6 +24,11 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
+  # Mostly Slack channel and user names, looked up while rendering a ticket.
+  # One pod, so there's nothing to share a cache with, and memory beats the
+  # disk round trip.
+  config.cache_store = :memory_store, { size: 32.megabytes }
+
   # Assume all access to the app is happening through a SSL-terminating reverse proxy (Orchard's ingress).
   config.assume_ssl = true
 

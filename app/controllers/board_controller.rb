@@ -4,20 +4,25 @@ class BoardController < ApplicationController
   # Finished columns would grow forever otherwise, and nobody scrolls them.
   CLOSED_SHOWN = 25
 
+  # Two loads for the whole board — one for what's live, one for what's
+  # finished — rather than one per column.
   def index
-    @columns = Ticket.statuses.keys.index_with { |status| tickets_in(status) }
+    @columns = Ticket.statuses.keys.index_with { [] }
+
+    live.each { |ticket| @columns[ticket.status] << ticket }
+    finished.group_by(&:status).each { |status, tickets| @columns[status] = tickets.first(CLOSED_SHOWN) }
   end
 
   private
 
-  def tickets_in(status)
-    scope = visible_tickets.where(status: status).includes(:user, :owner, :service, :topic, :blockers)
+  def live
+    scope = visible_tickets.needs_attention.preload(:user, :owner, :service, :topic, :blockers)
+    owner? ? scope.ordered_for_admin : scope.order(created_at: :desc)
+  end
 
-    if Ticket.new(status: status).needs_attention?
-      owner? ? scope.ordered_for_admin : scope.order(created_at: :desc)
-    else
-      scope.order(updated_at: :desc).limit(CLOSED_SHOWN)
-    end
+  def finished
+    visible_tickets.closed.preload(:user, :owner, :service, :topic, :blockers)
+                   .order(updated_at: :desc).limit(CLOSED_SHOWN * Ticket.statuses.size)
   end
 
   def visible_tickets

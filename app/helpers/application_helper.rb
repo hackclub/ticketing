@@ -88,9 +88,11 @@ module ApplicationHelper
     (user&.name.presence || user&.email.to_s).to_s.first.to_s.upcase.presence || "?"
   end
 
+  # Every avatar is a request to cachet, so rows below the fold wait until
+  # they're actually scrolled to.
   def avatar_tag(user, css_class: "size-8 rounded-full")
     if (url = avatar_url(user))
-      image_tag(url, alt: user.name.to_s, class: css_class)
+      image_tag(url, alt: user.name.to_s, class: css_class, loading: "lazy", decoding: "async")
     else
       content_tag(:div, avatar_initial(user), class: "#{css_class} bg-red-500 text-white flex items-center justify-center font-semibold shrink-0")
     end
