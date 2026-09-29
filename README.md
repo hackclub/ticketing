@@ -85,6 +85,20 @@ deployed and `SLACK_SIGNING_SECRET` set before that update will be accepted.
 Development uses `letter_opener`. Production sends via SMTP — set
 `SMTP_ADDRESS`, `SMTP_PORT`, `SMTP_DOMAIN`, `SMTP_USER_NAME`, `SMTP_PASSWORD`.
 
+## Deployment
+
+Orchard project **Tickets**, deployment `web`, auto-deploying from `main`.
+Two settings there aren't in this repo and matter:
+
+- **CPU limit 1000m.** The 250m it started on throttled everything about 4x —
+  a `SELECT 1` took 9.6ms rather than 1.3ms, because the starvation showed up
+  as what looked like database latency.
+- **A 5Gi volume at `/rails/storage`** for Active Storage attachments, which
+  forces the `recreate` deploy strategy (a volume like that attaches to one
+  pod at a time) and so a few seconds of downtime per deploy. Kubernetes
+  mounts it root-owned, which is why `bin/docker-entrypoint` starts as root,
+  takes ownership of that one directory and drops back to the `rails` user.
+
 ## Tests
 
 ```
