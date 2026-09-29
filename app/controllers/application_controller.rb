@@ -9,7 +9,7 @@ class ApplicationController < ActionController::Base
   before_action :require_login
   before_action :remember_who_is_acting
 
-  helper_method :current_user, :admin?, :owner?, :manages?
+  helper_method :current_user, :admin?, :owner?, :manages?, :everyone?
 
   private
 
@@ -45,6 +45,20 @@ class ApplicationController < ActionController::Base
 
   def manages?(ticket)
     ticket.managed_by?(current_user)
+  end
+
+  # Everybody, admins included, sees their own queue: what's filed to them
+  # plus what they filed. An admin can ask for everyone's, but has to ask —
+  # running the tracker isn't a reason to have other people's work in the
+  # way of your own.
+  def visible_tickets
+    return Ticket.all if everyone?
+
+    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
+  end
+
+  def everyone?
+    admin? && params[:scope] == "everyone"
   end
 
   def require_login

@@ -1,0 +1,10 @@
+<%# Only an admin has anything to switch to: everyone else can only ever see
+    their own queue, so there's nothing to offer them. %>
+<% if admin? %>
+  <div class="flex items-center rounded-md border border-gray-200 bg-white text-sm overflow-hidden">
+    <%= link_to "Yours", path.call(nil),
+          class: "px-3 py-1.5 #{everyone? ? 'text-gray-500 hover:text-gray-900' : 'bg-gray-100 font-medium text-gray-900'}" %>
+    <%= link_to "Everyone's", path.call("everyone"),
+          class: "px-3 py-1.5 border-l border-gray-200 #{everyone? ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-500 hover:text-gray-900'}" %>
+  </div>
+<% end %>

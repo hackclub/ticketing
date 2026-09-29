@@ -1,12 +1,15 @@
-<% title = admin? ? "All tickets" : owner? ? "Tickets" : "Your tickets" %>
+<% title = everyone? ? "Everyone's tickets" : owner? ? "Your tickets" : "Tickets you filed" %>
 <div class="flex items-center justify-between gap-4 mb-4 flex-wrap">
   <h1 class="text-2xl font-bold"><%= title %></h1>
-  <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
+  <div class="flex items-center gap-4">
+    <%= render "tickets/scope_switch", path: ->(scope) { tickets_path(status: @filter, scope: scope) } %>
+    <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
+  </div>
 </div>
 
 <div class="flex items-center gap-1 mb-6 border-b border-gray-200">
   <% TicketsController::FILTERS.each do |value, label| %>
-    <%= link_to label, tickets_path(status: value),
+    <%= link_to label, tickets_path(status: value, scope: params[:scope]),
           class: "px-3 py-2 text-sm font-medium border-b-2 -mb-px #{@filter == value ? 'border-red-600 text-red-700' : 'border-transparent text-gray-500 hover:text-gray-900'}" %>
   <% end %>
 </div>

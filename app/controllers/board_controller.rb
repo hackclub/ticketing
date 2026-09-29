@@ -24,10 +24,4 @@ class BoardController < ApplicationController
     visible_tickets.closed.preload(:user, :owner, :service, :topic, :blockers)
                    .order(updated_at: :desc).limit(CLOSED_SHOWN * Ticket.statuses.size)
   end
-
-  def visible_tickets
-    return Ticket.all if admin?
-
-    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
-  end
 end

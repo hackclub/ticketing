@@ -73,14 +73,6 @@ class TicketsController < ApplicationController
     end
   end
 
-  # An admin sees the lot; anyone else sees what's theirs to deal with plus
-  # whatever they filed themselves.
-  def visible_tickets
-    return Ticket.all if admin?
-
-    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
-  end
-
   def respond_with_status_change(updated, error:)
     respond_to do |format|
       format.turbo_stream { render turbo_stream: status_streams(updated, error) }

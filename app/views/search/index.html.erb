@@ -17,7 +17,7 @@
 
   <% if @tickets.any? %>
     <p class="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-      <%= @term.blank? ? "Recently updated" : "Tickets" %>
+      <%= everyone? ? "Everyone's tickets" : @term.blank? ? "Recently updated" : "Tickets" %>
     </p>
     <% @tickets.each do |ticket| %>
       <%= link_to ticket_path(ticket), class: "palette-item flex items-center gap-3 px-4 py-2",
@@ -43,6 +43,14 @@
           <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">VIP</span>
         <% end %>
       <% end %>
+    <% end %>
+  <% end %>
+
+  <% if admin? %>
+    <%= link_to search_path(q: @term, scope: everyone? ? nil : "everyone"),
+          class: "palette-item block px-4 py-2 text-xs text-gray-500",
+          data: { palette_item: "" } do %>
+      <%= everyone? ? "← Back to your own tickets" : "Search everyone's tickets instead →" %>
     <% end %>
   <% end %>
 

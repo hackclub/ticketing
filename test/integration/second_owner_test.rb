@@ -91,14 +91,47 @@ class SecondOwnerTest < ActionDispatch::IntegrationTest
     assert_no_match(/Filed to Bo/, response.body)
   end
 
-  test "but an admin can still see everything on the tickets index" do
+  test "the tickets index is Amber's own queue too, until she asks otherwise" do
     ticket_for(@owner, requester: users(:requester), title: "Filed to Bo")
     sign_in(users(:amber))
 
     get tickets_path(status: "all")
 
+    assert_no_match(/Filed to Bo/, response.body)
+    assert_match tickets(:website_bug).title, response.body
+  end
+
+  test "an admin can ask for everyone's, and only an admin gets it" do
+    ticket_for(@owner, requester: users(:requester), title: "Filed to Bo")
+
+    sign_in(users(:amber))
+    get tickets_path(status: "all", scope: "everyone")
     assert_match "Filed to Bo", response.body
     assert_match tickets(:website_bug).title, response.body
+
+    # Asking for it without being an admin changes nothing.
+    sign_in(@owner)
+    get tickets_path(status: "all", scope: "everyone")
+    assert_match "Filed to Bo", response.body
+    assert_no_match(/#{tickets(:website_bug).title}/, response.body)
+  end
+
+  test "the board and the search follow the same rule" do
+    theirs = ticket_for(@owner, requester: users(:requester), title: "Filed to Bo")
+    sign_in(users(:amber))
+
+    get board_path
+    assert_no_match(/Filed to Bo/, response.body)
+
+    get board_path(scope: "everyone")
+    assert_match "Filed to Bo", response.body
+
+    # The term itself is echoed back either way, so look for the result.
+    get search_path, params: { q: "Filed to Bo" }
+    assert_no_match(/#{ticket_path(theirs)}/, response.body)
+
+    get search_path, params: { q: "Filed to Bo", scope: "everyone" }
+    assert_match ticket_path(theirs), response.body
   end
 
   test "they manage their own services and nobody else's" do
