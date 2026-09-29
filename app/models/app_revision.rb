@@ -1,7 +1,7 @@
 # The commit this build came from. The Docker build writes REVISION at image
 # build time (see Dockerfile); locally we read .git directly.
 class AppRevision
-  REPO = "hackclub/amber".freeze
+  REPO = ENV.fetch("GITHUB_REPO", "hackclub/ticketing").freeze
   REVISION_FILE = Rails.root.join("REVISION")
 
   class << self
