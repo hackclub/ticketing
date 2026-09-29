@@ -7,6 +7,7 @@ class ApplicationController < ActionController::Base
 
   before_action :start_request_timer
   before_action :require_login
+  before_action :remember_who_is_acting
 
   helper_method :current_user, :admin?, :owner?, :manages?
 
@@ -20,6 +21,12 @@ class ApplicationController < ActionController::Base
 
   def start_request_timer
     Current.started_at = Time.current
+  end
+
+  # So the timeline can record who moved a ticket without every call site
+  # having to pass an author around.
+  def remember_who_is_acting
+    Current.user = current_user
   end
 
   def current_user

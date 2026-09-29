@@ -19,6 +19,7 @@ module Slack
     def handle_submission(payload)
       case payload.dig("view", "callback_id")
       when "update_ticket" then submit_status(payload)
+      when "comment_ticket" then submit_comment(payload)
       else submit_ticket(payload)
       end
     end
@@ -41,6 +42,7 @@ module Slack
     def submit_ticket(payload)
       values = payload.dig("view", "state", "values")
       user = User.find_or_create_from_slack(payload.dig("user", "id"), slack_client)
+      Current.user = user
       service_id, topic_id = selected(values, "topic").to_s.split(":")
 
       ticket = user.tickets.new(
@@ -74,6 +76,9 @@ module Slack
       when "set_status"
         open_status_modal(payload, action, slack_user_id)
         head :ok
+      when "comment_ticket"
+        open_comment_modal(payload, action["value"], slack_user_id)
+        head :ok
       else
         head :ok
       end
@@ -97,8 +102,37 @@ module Slack
       slack_client.views_open(trigger_id: payload["trigger_id"], view: JSON.parse(view))
     end
 
+    # Reply straight from the DM, rather than going to the web to type a line.
+    def open_comment_modal(payload, ticket_id, slack_user_id)
+      user = User.find_or_create_from_slack(slack_user_id, slack_client)
+      ticket = Ticket.find_by(id: ticket_id)
+      return if ticket.nil? || !ticket.visible_to?(user)
+
+      view = render_to_string(
+        template: "slack/tickets/comment",
+        formats: [ :slack_modal ],
+        locals: { ticket: ticket, author: user }
+      )
+
+      slack_client.views_open(trigger_id: payload["trigger_id"], view: JSON.parse(view))
+    end
+
+    def submit_comment(payload)
+      user = User.find_or_create_from_slack(payload.dig("user", "id"), slack_client)
+      Current.user = user
+      ticket = Ticket.find_by(id: payload.dig("view", "private_metadata"))
+      body = input(payload.dig("view", "state", "values"), "body")
+
+      if ticket&.visible_to?(user) && body.present?
+        ticket.events.create(kind: :comment, body: body, author: user)
+      end
+
+      head :ok
+    end
+
     def submit_status(payload)
       user = User.find_or_create_from_slack(payload.dig("user", "id"), slack_client)
+      Current.user = user
       ticket_id, status = payload.dig("view", "private_metadata").to_s.split(":")
       ticket = Ticket.find_by(id: ticket_id)
       values = payload.dig("view", "state", "values")
@@ -107,7 +141,7 @@ module Slack
         ticket.update(status: status, status_note: input(values, "note"), **deadline_change(values, ticket))
 
         internal = input(values, "internal_note")
-        ticket.notes.create(body: internal, author: user) if internal.present?
+        ticket.events.create(kind: :internal_note, body: internal, author: user) if internal.present?
 
         blocker_id = selected(values, "blocker")
         ticket.blocked_links.create(blocker_ticket_id: blocker_id) if blocker_id.present?

@@ -191,12 +191,12 @@ class McpControllerTest < ActionDispatch::IntegrationTest
   test "an admin can add an internal note" do
     ticket = tickets(:website_bug)
 
-    assert_difference -> { ticket.notes.count }, 1 do
+    assert_difference -> { ticket.events.internal_note.count }, 1 do
       call_tool("add_internal_note", { "id" => ticket.id, "note" => "Waiting on a reply from ops." }, token: @admin_token)
     end
 
     refute response.parsed_body.dig("result", "isError")
-    assert_equal users(:amber), ticket.notes.last.author
+    assert_equal users(:amber), ticket.events.internal_note.last.author
   end
 
   test "notes append rather than overwrite" do
@@ -205,12 +205,12 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     call_tool("add_internal_note", { "id" => ticket.id, "note" => "first" }, token: @admin_token)
     call_tool("add_internal_note", { "id" => ticket.id, "note" => "second" }, token: @admin_token)
 
-    assert_equal [ "first", "second" ], ticket.notes.oldest_first.pluck(:body)
+    assert_equal [ "first", "second" ], ticket.events.internal_note.oldest_first.pluck(:body)
   end
 
   test "internal notes are hidden from the requester's own ticket" do
     ticket = tickets(:website_bug)
-    ticket.notes.create!(body: "Do not show this to them", author: users(:amber))
+    ticket.events.internal_note.create!(body: "Do not show this to them", author: users(:amber))
 
     call_tool("get_ticket", { "id" => ticket.id }, token: @requester_token)
 
@@ -220,18 +220,18 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
   test "an admin sees internal notes on a ticket" do
     ticket = tickets(:website_bug)
-    ticket.notes.create!(body: "Chased this up on Tuesday", author: users(:amber))
+    ticket.events.internal_note.create!(body: "Chased this up on Tuesday", author: users(:amber))
 
     call_tool("get_ticket", { "id" => ticket.id }, token: @admin_token)
 
     assert_match "Chased this up on Tuesday", text_content
-    assert_match "Internal notes", text_content
+    assert_match "private note", text_content
   end
 
   test "a non-admin can't add an internal note" do
     ticket = tickets(:website_bug)
 
-    assert_no_difference -> { ticket.notes.count } do
+    assert_no_difference -> { ticket.events.internal_note.count } do
       call_tool("add_internal_note", { "id" => ticket.id, "note" => "sneaky" }, token: @requester_token)
     end
 
@@ -414,6 +414,66 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_match "overdue", text_content
     assert_match "blocked by ##{other_persons_ticket.id}", text_content
+  end
+
+  # --- the timeline -------------------------------------------------------
+
+  test "a requester can talk back on their own ticket" do
+    ticket = tickets(:website_bug)
+
+    call_tool("add_comment", { "id" => ticket.id, "message" => "Any news on this?" }, token: @requester_token)
+
+    event = ticket.events.comment.sole
+    assert_equal "Any news on this?", event.body
+    assert_equal @requester, event.author
+    assert_match "Amber", text_content
+  end
+
+  test "you can't talk on a ticket you can't see" do
+    owner = another_owner
+    theirs = ticket_for(owner)
+
+    call_tool("add_comment", { "id" => theirs.id, "message" => "hello?" }, token: @requester_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_equal 0, theirs.events.comment.count
+  end
+
+  test "get_ticket reads back the whole timeline" do
+    ticket = tickets(:website_bug)
+    ticket.events.create!(kind: :comment, body: "Any news?", author: @requester)
+    ticket.events.create!(kind: :internal_note, body: "Chased ops", author: users(:amber))
+    Current.user = users(:amber)
+    ticket.update!(status: :in_progress, status_note: "Started on it")
+
+    call_tool("get_ticket", { "id" => ticket.id }, token: @admin_token)
+
+    assert_match "Any news?", text_content
+    assert_match "Chased ops", text_content
+    assert_match "moved this from open to in progress", text_content
+  end
+
+  test "the requester's copy of the timeline leaves the private notes out" do
+    ticket = tickets(:website_bug)
+    ticket.events.create!(kind: :comment, body: "Any news?", author: @requester)
+    ticket.events.create!(kind: :internal_note, body: "Chased ops", author: users(:amber))
+
+    call_tool("get_ticket", { "id" => ticket.id }, token: @requester_token)
+
+    assert_match "Any news?", text_content
+    assert_no_match(/Chased ops/, text_content)
+  end
+
+  test "a status change from here lands on the timeline as one" do
+    ticket = tickets(:website_bug)
+
+    call_tool("update_ticket_status", { "id" => ticket.id, "status" => "done", "note" => "Shipped." },
+              token: @admin_token)
+
+    event = ticket.events.status_change.sole
+    assert_equal users(:amber), event.author
+    assert_equal "Shipped.", event.body
+    assert_equal "moved this from open to done", event.headline
   end
 
   # --- once somebody else is using the tracker ----------------------------

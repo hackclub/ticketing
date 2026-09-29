@@ -1,0 +1,26 @@
+<div class="flex items-center justify-between gap-4 mb-1 flex-wrap">
+  <h1 class="text-2xl font-bold">Board</h1>
+  <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
+</div>
+<p class="text-gray-600 mb-6">Drag a ticket to another column to change its status. Finished columns show the <%= BoardController::CLOSED_SHOWN %> most recent.</p>
+
+<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-start"
+     data-controller="board"
+     data-board-url-value="<%= tickets_path %>">
+  <% @columns.each do |status, tickets| %>
+    <section class="board-column rounded-lg bg-gray-100 p-3"
+             data-board-target="column"
+             data-status="<%= status %>"
+             data-action="dragover->board#dragOver dragleave->board#dragLeave drop->board#drop">
+      <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3 px-1">
+        <%= Ticket.status_label(status) %>
+        <span class="text-xs font-normal px-2 py-0.5 rounded-full <%= status_badge_classes(status) %>"
+              data-board-target="count"><%= tickets.size %></span>
+      </h2>
+
+      <div class="space-y-2 min-h-16" data-board-target="dropzone">
+        <%= render partial: "board/card", collection: tickets, as: :ticket %>
+      </div>
+    </section>
+  <% end %>
+</div>

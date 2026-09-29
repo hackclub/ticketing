@@ -17,10 +17,13 @@ if ticket.due_at.present? || ticket.blocked?
   ]
 end
 
-if ticket.notes.any?
-  context [ mrkdwn_text("*Internal notes so far*") ]
-  ticket.notes.oldest_first.last(5).each do |note|
-    context [ mrkdwn_text("#{note.author.name.presence || note.author.email}: #{note.body.truncate(150)}") ]
+recent = ticket.events.oldest_first.includes(:author).last(5)
+
+if recent.any?
+  context [ mrkdwn_text("*Lately*") ]
+  recent.each do |event|
+    what = event.status_change? ? event.headline : event.body.to_s.truncate(150)
+    context [ mrkdwn_text("#{event.author.display_name}#{' (private)' if event.internal_note?}: #{what}") ]
   end
 end
 

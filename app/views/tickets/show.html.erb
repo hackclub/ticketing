@@ -20,7 +20,7 @@
         &middot; <%= link_to "Message on Slack", dm_url, class: "text-blue-600 hover:underline", target: "_blank", rel: "noopener noreferrer" %>
       <% end %>
     <% else %>
-      <%= @ticket.user.name.presence || @ticket.user.email %>
+      <%= @ticket.user.display_name %>
     <% end %>
     &middot; <%= time_ago_in_words(@ticket.created_at) %> ago
   </p>
@@ -37,8 +37,6 @@
     <%= markdown(@ticket.message) %>
   </div>
 
-  <%= render "tickets/status_note", ticket: @ticket %>
-
   <%# Requesters see that something is in the way, but not whose ticket it is. %>
   <% if !manages?(@ticket) && @ticket.blocked? %>
     <p class="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
@@ -48,18 +46,14 @@
 
   <% if manages?(@ticket) %>
     <%= render "tickets/scheduling", ticket: @ticket %>
-
-    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-      <h2 class="text-sm font-semibold text-amber-900">Internal notes</h2>
-      <p class="text-xs text-amber-700 mb-3">Only admins see these. Nothing here is emailed or DM'd to <%= @ticket.user.name.presence || "them" %>.</p>
-
-      <ul id="<%= dom_id(@ticket, :notes) %>" class="space-y-2 empty:hidden mb-3">
-        <%= render partial: "tickets/note", collection: @ticket.notes.oldest_first, as: :note %>
-      </ul>
-
-      <%= render "tickets/note_form", ticket: @ticket %>
-    </div>
-
     <%= render "tickets/status_form", ticket: @ticket %>
   <% end %>
+
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mt-8 mb-3">Timeline</h2>
+
+  <ol id="<%= dom_id(@ticket, :timeline) %>" class="space-y-3 mb-4 empty:hidden">
+    <%= render partial: "tickets/event", collection: @events, as: :event %>
+  </ol>
+
+  <%= render "tickets/composer", ticket: @ticket %>
 </div>

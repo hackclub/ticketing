@@ -10,6 +10,7 @@ class McpController < ActionController::Base
 
   def create
     payload = JSON.parse(request.raw_post)
+    Current.user = @current_user
     server = McpServer.new(@current_user)
 
     if payload.is_a?(Array)

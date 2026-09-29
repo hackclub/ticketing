@@ -5,7 +5,7 @@ class Ticket < ApplicationRecord
   belongs_to :service
   belongs_to :topic
 
-  has_many :notes, class_name: "TicketNote", dependent: :destroy
+  has_many :events, class_name: "TicketEvent", dependent: :destroy
 
   # "This ticket is waiting on those ones", and the reverse.
   has_many :blocked_links, class_name: "TicketBlock", foreign_key: :blocked_ticket_id, dependent: :destroy
@@ -93,10 +93,12 @@ class Ticket < ApplicationRecord
     ])
   end
 
-  # Notifications live here rather than in the controllers so tickets filed
-  # from Slack notify identically to ones filed on the web.
+  # Notifications and timeline entries live here rather than in the
+  # controllers, so a ticket filed or changed from Slack behaves exactly like
+  # one from the web.
   after_create_commit :notify_created
   after_update_commit :notify_status_changed, if: :saved_change_to_status?
+  after_update_commit :record_status_change, if: :saved_change_to_status?
 
   # --- deadlines ---------------------------------------------------------
 
@@ -166,6 +168,13 @@ class Ticket < ApplicationRecord
     Ticket.owned_by(owner).needs_attention.where.not(id: [ id, *blockers.ids ].compact).order(created_at: :desc)
   end
 
+  # A ticket is a conversation between whoever filed it and whoever has to do
+  # something about it; this is the person on the other end from whoever just
+  # spoke. An admin speaking on someone else's ticket answers the requester.
+  def other_party(speaker)
+    speaker.id == user_id ? owner : user
+  end
+
   # Whose job it is to deal with this, versus who is merely allowed to read it.
   def managed_by?(user)
     user.present? && (user.admin? || owner_id == user.id)
@@ -194,6 +203,16 @@ class Ticket < ApplicationRecord
   def notify_status_changed
     TicketMailer.status_changed(self).deliver_later
     SlackNotificationJob.perform_later(id, "status_changed")
+  end
+
+  # Written here rather than at each call site so a status changed from the
+  # web, Slack or the MCP tools all leave the same mark on the timeline.
+  def record_status_change(*)
+    before, after = saved_change_to_status
+    events.create!(
+      kind: :status_change, author: Current.user || owner, body: status_note.presence,
+      from_status: self.class.statuses[before], to_status: self.class.statuses[after]
+    )
   end
 
   def topic_belongs_to_service

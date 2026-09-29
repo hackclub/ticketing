@@ -1,8 +1,0 @@
-<div id="<%= dom_id(ticket, :status_note) %>">
-  <% if ticket.status_note.present? %>
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-      <p class="text-xs font-medium text-blue-800 mb-1">Latest update</p>
-      <div class="prose prose-sm max-w-none break-words [overflow-wrap:anywhere] prose-pre:overflow-x-auto text-blue-900"><%= markdown(ticket.status_note) %></div>
-    </div>
-  <% end %>
-</div>

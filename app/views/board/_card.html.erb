@@ -1,0 +1,29 @@
+<%# Draggable only for whoever the ticket is for — everyone else can read the
+    board but not rearrange somebody's work. %>
+<% manage = manages?(ticket) %>
+<article id="<%= dom_id(ticket, :card) %>"
+         class="board-card bg-white border border-gray-200 rounded-lg p-3 <%= "cursor-grab" if manage %>"
+         <%= "draggable=true".html_safe if manage %>
+         data-board-target="card"
+         data-ticket-id="<%= ticket.id %>"
+         data-action="dragstart->board#dragStart dragend->board#dragEnd">
+  <%= link_to ticket.title, ticket_path(ticket), class: "font-medium text-sm text-gray-900 hover:underline block mb-1" %>
+
+  <div class="flex items-center gap-1.5 flex-wrap mb-2">
+    <span class="text-xs px-2 py-0.5 rounded-full <%= priority_badge_classes(ticket.priority) %>"><%= ticket.priority.humanize %></span>
+    <% if manage && ticket.user.priority_boost? %>
+      <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">VIP</span>
+    <% end %>
+    <%= render "tickets/badges", ticket: ticket %>
+  </div>
+
+  <p class="text-xs text-gray-500 flex items-center gap-1.5 min-w-0">
+    <% if manage %>
+      <%= avatar_tag(ticket.user, css_class: "size-4 rounded-full shrink-0") %>
+      <span class="truncate"><%= ticket.user.display_name %></span>
+    <% else %>
+      <span class="truncate">for <%= ticket.owner.display_name %></span>
+    <% end %>
+    <span class="shrink-0">&middot; <%= ticket.service.name %></span>
+  </p>
+</article>

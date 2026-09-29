@@ -1,5 +1,15 @@
 #!/bin/bash -e
 
+# Attachments live on a mounted volume, which Kubernetes hands us owned by
+# root with no way to ask for anything else. So PID 1 starts as root, takes
+# ownership of that one directory, and immediately drops to the rails user —
+# the app itself never runs as root.
+if [ "$(id -u)" = "0" ]; then
+  mkdir -p /rails/storage
+  chown rails:rails /rails/storage
+  exec setpriv --reuid=1000 --regid=1000 --clear-groups "$0" "$@"
+fi
+
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare

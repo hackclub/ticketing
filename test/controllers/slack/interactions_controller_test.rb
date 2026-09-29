@@ -224,8 +224,8 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
     ticket.reload
     assert ticket.wont_do?
     assert_equal "Not going to get to this, sorry.", ticket.status_note
-    assert_equal "Duplicate of the other request.", ticket.notes.sole.body
-    assert_equal users(:amber), ticket.notes.sole.author
+    assert_equal "Duplicate of the other request.", ticket.events.internal_note.sole.body
+    assert_equal users(:amber), ticket.events.internal_note.sole.author
   end
 
   test "an unknown status from Slack changes nothing" do

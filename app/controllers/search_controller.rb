@@ -53,6 +53,7 @@ class SearchController < ApplicationController
     list = [
       [ "Dashboard", root_path ],
       [ "New ticket", new_ticket_path ],
+      [ "Board", board_path ],
       [ "Open tickets", tickets_path(status: "open") ],
       [ "Closed tickets", tickets_path(status: "closed") ],
       [ "All tickets", tickets_path(status: "all") ],

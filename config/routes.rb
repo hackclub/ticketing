@@ -6,10 +6,12 @@ Rails.application.routes.draw do
   root "dashboard#index"
 
   resources :tickets, only: [ :index, :new, :create, :show, :update ] do
-    resources :notes, only: [ :create, :destroy ], controller: "ticket_notes"
+    resources :events, only: [ :create, :destroy ], controller: "ticket_events"
     resources :blocks, only: [ :create, :destroy ], controller: "ticket_blocks"
     resource :deadline, only: [ :update, :destroy ], controller: "ticket_deadlines"
   end
+
+  get "/board", to: "board#index", as: :board
 
   # Backs the ⌘K palette. GET so a result list is just a page.
   get "/search", to: "search#index", as: :search

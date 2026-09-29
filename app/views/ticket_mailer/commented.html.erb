@@ -1,0 +1,11 @@
+<h1><%= @author.display_name %> added to &ldquo;<%= @ticket.title %>&rdquo;</h1>
+
+<blockquote style="border-left: 3px solid #ddd; margin: 0 0 1em; padding-left: 1em;">
+  <%= markdown(@event.body) %>
+</blockquote>
+
+<% if @event.files.attached? %>
+  <p><%= pluralize(@event.files.size, "file") %> attached — open the ticket to see <%= @event.files.size == 1 ? "it" : "them" %>.</p>
+<% end %>
+
+<p><%= link_to "Reply on the ticket", ticket_url(@ticket) %></p>

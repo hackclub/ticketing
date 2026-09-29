@@ -116,11 +116,13 @@ class TicketsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "text/vnd.turbo-stream.html", response.media_type
-    [ :status, :status_note, :status_form ].each do |part|
+    [ :status, :status_form ].each do |part|
       assert_match %(action="replace" target="#{dom_id(ticket, part)}"), response.body
     end
-    # The dashboard's queue is refreshed by the same response, so a ticket
-    # that just closed drops out of it without a reload.
+    # The change lands on the timeline, and the dashboard's queue is
+    # refreshed by the same response, so a ticket that just closed drops out
+    # of it without a reload.
+    assert_match %(action="append" target="#{dom_id(ticket, :timeline)}"), response.body
     assert_match %(action="replace" target="queue"), response.body
     assert_match "Shipped.", response.body
     assert ticket.reload.done?

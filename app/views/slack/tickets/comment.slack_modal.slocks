@@ -1,0 +1,13 @@
+title "Add to the thread"
+submit "Send"
+close "Cancel"
+callback "comment_ticket"
+private_metadata ticket.id.to_s
+
+section "*#{ticket.title}*", markdown: true
+context [ mrkdwn_text("Goes to #{ticket.other_party(author).display_name} by email and DM, and onto the ticket's timeline.") ]
+
+input "Message",
+      plain_text_input("body", multiline: true, placeholder: "…"),
+      block_id: "body",
+      hint: "Markdown is supported. Files go on the web."

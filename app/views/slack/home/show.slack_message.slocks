@@ -61,6 +61,10 @@ tickets.each do |ticket|
       )
     )
   else
-    section("#{text}  ·  #{status_label.call(ticket.status)}", markdown: true)
+    section(
+      "#{text}  ·  #{status_label.call(ticket.status)}",
+      markdown: true,
+      accessory: button("Reply", "comment_ticket", value: ticket.id.to_s)
+    )
   end
 end

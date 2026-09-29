@@ -1,0 +1,7 @@
+<%= @author.display_name %> added to "<%= @ticket.title %>":
+
+<%= @event.body %>
+<% if @event.files.attached? %>
+<%= pluralize(@event.files.size, "file") %> attached — open the ticket to see <%= @event.files.size == 1 ? "it" : "them" %>.
+<% end %>
+Reply on the ticket: <%= ticket_url(@ticket) %>

@@ -97,8 +97,22 @@ class McpServer
         }
       },
       {
+        "name" => "add_comment",
+        "description" => "Say something on a ticket's timeline. This is a message to the other side: the person " \
+                         "it's for if you filed it, the person who filed it if it's yours. They get an email and " \
+                         "a Slack DM. For something private use add_internal_note instead.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer" },
+            "message" => { "type" => "string", "description" => "Markdown is supported." }
+          },
+          "required" => [ "id", "message" ]
+        }
+      },
+      {
         "name" => "get_ticket",
-        "description" => "Get the full details of one ticket, including its latest status note.",
+        "description" => "Get one ticket in full, including everything on its timeline.",
         "inputSchema" => {
           "type" => "object",
           "properties" => { "id" => { "type" => "integer" } },
@@ -309,6 +323,7 @@ class McpServer
     when "create_ticket" then create_ticket(args)
     when "list_my_tickets" then list_my_tickets(args)
     when "get_ticket" then get_ticket(args)
+    when "add_comment" then add_comment(args)
     when "my_queue" then my_queue(args)
     when "add_internal_note" then add_internal_note(args)
     when "update_ticket_status" then update_ticket_status(args)
@@ -421,6 +436,16 @@ class McpServer
     [ ticket, nil ]
   end
 
+  def add_comment(args)
+    ticket = Ticket.find(args["id"])
+    return [ "You don't have access to ticket ##{ticket.id}." ] unless ticket.visible_to?(user)
+
+    event = ticket.events.new(kind: :comment, body: args["message"], author: user)
+    return [ "Could not add it: #{event.errors.full_messages.to_sentence}" ] unless event.save
+
+    "Added to ##{ticket.id}. #{ticket.other_party(user).display_name} gets an email and a Slack DM."
+  end
+
   def my_queue(args)
     limit = [ args["limit"].to_i, 1 ].max
     limit = 25 if args["limit"].blank?
@@ -435,11 +460,12 @@ class McpServer
   def add_internal_note(args)
     ticket, refusal = manage(args["id"])
     return refusal if refusal
-    note = ticket.notes.new(body: args["note"], author: user)
+    note = ticket.events.new(kind: :internal_note, body: args["note"], author: user)
 
     return [ "Could not add it: #{note.errors.full_messages.to_sentence}" ] unless note.save
 
-    "Added a private note to ##{ticket.id}. It has #{ticket.notes.count} #{'note'.pluralize(ticket.notes.count)} now."
+    count = ticket.events.internal_note.count
+    "Added a private note to ##{ticket.id}. It has #{count} #{'note'.pluralize(count)} now."
   end
 
   def update_ticket_status(args)
@@ -662,11 +688,11 @@ class McpServer
 
       # Private notes are admin-only, and get_ticket is reachable by the
       # requester for their own ticket.
-      if user.admin? && ticket.notes.any?
-        lines << "\nInternal notes (private):"
-        ticket.notes.oldest_first.each do |note|
-          lines << "- #{note.created_at.to_fs(:short)} #{note.author.name.presence || note.author.email}: #{note.body}"
-        end
+      events = ticket.events.oldest_first.includes(:author).select { |event| event.visible_to?(user) }
+
+      if events.any?
+        lines << "\nTimeline:"
+        events.each { |event| lines << "- #{describe_event(event)}" }
       end
     end
 
@@ -675,6 +701,18 @@ class McpServer
 
   def list_refs(tickets)
     tickets.map { |ticket| "#{ticket.reference} (#{ticket.status_label.downcase})" }.join(", ")
+  end
+
+  def describe_event(event)
+    who = event.author.display_name
+    what = case event.kind
+    when "status_change" then "#{who} #{event.headline}#{": #{event.body}" if event.body.present?}"
+    when "internal_note" then "#{who} (private note): #{event.body}"
+    else "#{who}: #{event.body}"
+    end
+
+    files = event.files.attached? ? " [#{event.files.map { |file| file.filename }.join(', ')}]" : ""
+    "#{event.created_at.to_fs(:short)} #{what}#{files}"
   end
 
   def time_ago(time)

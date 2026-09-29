@@ -35,3 +35,15 @@
 .palette-item[aria-selected="true"] {
   background-color: var(--color-gray-100);
 }
+
+/* Dragging a card between columns. The dragged card fades, the column it's
+   over lifts — both things the browser won't do for you. */
+.board-card.is-dragging {
+  opacity: 0.4;
+}
+
+.board-column.is-over {
+  background-color: var(--color-gray-200);
+  outline: 2px dashed var(--color-gray-400);
+  outline-offset: -2px;
+}

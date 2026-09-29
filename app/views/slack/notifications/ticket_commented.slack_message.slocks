@@ -1,0 +1,12 @@
+author = event.author.slack_id.presence ? "<@#{event.author.slack_id}>" : "*#{event.author.display_name}*"
+
+section(
+  "#{author} added to *<#{SlackNotifier.ticket_url(event.ticket)}|#{event.ticket.title}>*",
+  markdown: true
+)
+
+section("> #{event.body.to_s.truncate(500).gsub("\n", "\n> ")}", markdown: true) if event.body.present?
+
+context [ mrkdwn_text("📎 #{pluralize(event.files.size, 'file')} attached — open the ticket to see #{event.files.size == 1 ? 'it' : 'them'}.") ] if event.files.attached?
+
+actions [ button("Reply", "comment_ticket", value: event.ticket.id.to_s, style: "primary") ]

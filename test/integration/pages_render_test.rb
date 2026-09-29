@@ -18,7 +18,8 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
     sign_in(users(:requester))
 
     [ root_path, new_ticket_path, ticket_path(tickets(:website_bug)), settings_path,
-      tickets_path, tickets_path(status: "closed"), tickets_path(status: "all"), search_path ].each do |path|
+      tickets_path, tickets_path(status: "closed"), tickets_path(status: "all"), search_path,
+      board_path ].each do |path|
       get path
       assert_response :success, "#{path} did not render"
     end
@@ -76,16 +77,18 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
       admin_user_path(users(:requester)),
       tickets_path,
       tickets_path(status: "closed"),
-      search_path
+      search_path,
+      board_path
     ].each do |path|
       get path
       assert_response :success, "#{path} did not render"
     end
   end
 
-  test "a ticket page renders with a status note and a Slack requester" do
+  test "a ticket page renders its timeline and a Slack requester" do
     users(:requester).update!(slack_id: "U123REQUESTER")
-    tickets(:website_bug).update!(status_note: "Shipped this morning.")
+    Current.user = users(:amber)
+    tickets(:website_bug).update!(status: :done, status_note: "Shipped this morning.")
     sign_in(users(:amber))
 
     get ticket_path(tickets(:website_bug))

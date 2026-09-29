@@ -1,4 +1,8 @@
 class Current < ActiveSupport::CurrentAttributes
+  # Who is doing this, so the timeline can say so without every call site
+  # having to pass an author along.
+  attribute :user
+
   attribute :sql_count, :sql_runtime, :started_at
 
   def record_query(runtime)

@@ -1,0 +1,40 @@
+<%# One entry in a ticket's timeline. A status change is a one-line aside; a
+    message or a note is a card, tinted amber when only this side can see it. %>
+<li id="<%= dom_id(event) %>" class="relative">
+  <% if event.status_change? %>
+    <div class="flex items-center gap-2 py-1.5 text-sm text-gray-500">
+      <%= avatar_tag(event.author, css_class: "size-5 rounded-full shrink-0") %>
+      <span>
+        <span class="font-medium text-gray-700"><%= event.author.display_name %></span>
+        <%= event.headline %>
+        <span class="text-gray-400">&middot; <%= time_ago_in_words(event.created_at) %> ago</span>
+      </span>
+    </div>
+    <% if event.body.present? %>
+      <div class="ml-7 mb-2 prose prose-sm max-w-none break-words [overflow-wrap:anywhere] text-gray-600"><%= markdown(event.body) %></div>
+    <% end %>
+  <% else %>
+    <div class="rounded-lg border p-3 <%= event.internal_note? ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200' %>">
+      <div class="flex items-center gap-2 mb-1">
+        <%= avatar_tag(event.author, css_class: "size-6 rounded-full shrink-0") %>
+        <span class="text-sm font-medium text-gray-900"><%= event.author.display_name %></span>
+        <% if event.internal_note? %>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">Private</span>
+        <% end %>
+        <span class="text-xs text-gray-400"><%= time_ago_in_words(event.created_at) %> ago</span>
+
+        <% if event.author_id == current_user.id || admin? %>
+          <%= button_to "×", ticket_event_path(event.ticket, event), method: :delete,
+                class: "ml-auto shrink-0 text-gray-400 hover:text-gray-700 bg-transparent border-0 p-0 cursor-pointer leading-none text-lg",
+                form: { data: { turbo_confirm: "Delete this?" } } %>
+        <% end %>
+      </div>
+
+      <% if event.body.present? %>
+        <div class="prose prose-sm max-w-none break-words [overflow-wrap:anywhere] prose-pre:overflow-x-auto text-gray-800"><%= markdown(event.body) %></div>
+      <% end %>
+
+      <%= render "tickets/attachments", event: event %>
+    </div>
+  <% end %>
+</li>

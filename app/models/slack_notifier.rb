@@ -35,6 +35,19 @@ class SlackNotifier
          ticket: ticket)
     end
 
+    # A comment goes to whoever is on the other side of the conversation.
+    def ticket_commented(event)
+      return if event.nil? || !event.comment?
+
+      recipient = event.ticket.other_party(event.author)
+      return if recipient.slack_id.blank?
+
+      dm(recipient.slack_id,
+         "#{event.author.display_name} added to \"#{event.ticket.title}\"",
+         "slack/notifications/ticket_commented",
+         event: event)
+    end
+
     def publish_home(slack_user_id)
       user = User.find_by(slack_id: slack_user_id)
       tickets = home_tickets(user)

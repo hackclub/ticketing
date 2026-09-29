@@ -1,0 +1,24 @@
+<%= form_with model: TicketEvent.new, url: ticket_events_path(ticket), scope: :ticket_event,
+      id: dom_id(ticket, :composer), class: "bg-white border border-gray-200 rounded-lg p-3 space-y-2" do |f| %>
+  <%= f.text_area :body, rows: 3, class: input_classes("text-sm"),
+        placeholder: manages?(ticket) ? "Reply to #{ticket.user.display_name}…" : "Add to the thread…" %>
+
+  <div class="flex items-center gap-3 flex-wrap">
+    <%= f.file_field :files, multiple: true, class: "text-sm text-gray-600 file:mr-2 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200 file:cursor-pointer" %>
+
+    <% if manages?(ticket) %>
+      <%# A private note stays on this side: no email, no DM. %>
+      <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+        <%= check_box_tag :internal, "1", false, class: "rounded border-gray-300 size-4" %>
+        Private note
+      </label>
+    <% end %>
+
+    <%= f.submit "Send", class: "ml-auto shrink-0 text-sm bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 cursor-pointer" %>
+  </div>
+
+  <p class="text-xs text-gray-400">
+    Markdown supported. Up to <%= TicketEvent::MAX_FILES %> files, <%= number_to_human_size(TicketEvent::MAX_FILE_SIZE) %> each.
+    <%= manages?(ticket) ? "Anything but a private note is emailed and DM'd to #{ticket.user.display_name}." : "#{ticket.owner.display_name} gets an email and a Slack DM." %>
+  </p>
+<% end %>

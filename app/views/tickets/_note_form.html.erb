@@ -1,5 +1,0 @@
-<%= form_with url: ticket_notes_path(ticket), scope: :ticket_note, id: dom_id(ticket, :note_form),
-      class: "flex items-start gap-2" do |f| %>
-  <%= f.text_area :body, rows: 2, placeholder: "Waiting on a reply from…", class: input_classes("text-sm") %>
-  <%= f.submit "Add note", class: "shrink-0 text-sm bg-amber-600 text-white px-3 py-2 rounded-md font-medium hover:bg-amber-700 cursor-pointer" %>
-<% end %>

@@ -1,0 +1,21 @@
+<%# Images show themselves; everything else is a link with its size, so you
+    can tell a screenshot from a 40MB log before clicking. %>
+<% if event.files.attached? %>
+  <div class="mt-2 flex flex-wrap gap-2">
+    <% event.files.each do |file| %>
+      <% if event.previewable?(file) %>
+        <%= link_to rails_blob_path(file, disposition: :inline), target: "_blank", rel: "noopener noreferrer",
+              class: "block" do %>
+          <%= image_tag rails_blob_path(file, disposition: :inline), alt: file.filename.to_s,
+                class: "max-h-64 rounded-md border border-gray-200" %>
+        <% end %>
+      <% else %>
+        <%= link_to rails_blob_path(file, disposition: :attachment),
+              class: "flex items-center gap-2 text-sm text-blue-600 hover:underline border border-gray-200 rounded-md px-3 py-2 bg-white" do %>
+          <span class="truncate max-w-[16rem]"><%= file.filename %></span>
+          <span class="text-xs text-gray-400 shrink-0"><%= number_to_human_size(file.byte_size) %></span>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>

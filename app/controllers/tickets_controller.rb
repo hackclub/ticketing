@@ -34,6 +34,8 @@ class TicketsController < ApplicationController
   end
 
   def show
+    @events = @ticket.events.oldest_first.includes(:author, files_attachments: :blob)
+                     .select { |event| event.visible_to?(current_user) }
   end
 
   def update
@@ -97,8 +99,9 @@ class TicketsController < ApplicationController
 
     streams + [
       turbo_stream.replace(helpers.dom_id(@ticket, :status), partial: "tickets/status_badge", locals: { ticket: @ticket }),
-      turbo_stream.replace(helpers.dom_id(@ticket, :status_note), partial: "tickets/status_note", locals: { ticket: @ticket }),
       turbo_stream.replace(helpers.dom_id(@ticket, :status_form), partial: "tickets/status_form", locals: { ticket: @ticket }),
+      turbo_stream.append(helpers.dom_id(@ticket, :timeline), partial: "tickets/event",
+                          locals: { event: @ticket.events.oldest_first.last }),
       turbo_stream.replace(helpers.dom_id(@ticket, :row), partial: "tickets/row", locals: { ticket: @ticket }),
       # Finishing a ticket can unblock others, and a closed ticket stops
       # being overdue, so the scheduling box and its badge move too.

@@ -8,7 +8,7 @@
   <div>
     <%= f.label :status_note, "Note for #{ticket.user.name.presence || 'them'} (optional)", class: "block text-sm font-medium text-gray-700 mb-1" %>
     <%= f.text_area :status_note, rows: 3, value: nil, placeholder: "Shipped in this morning's deploy.", class: input_classes("text-sm") %>
-    <p class="text-xs text-gray-400 mt-1">Sent with the status change, by email and Slack DM.</p>
+    <p class="text-xs text-gray-400 mt-1">Goes on the timeline with the status change, and out by email and Slack DM.</p>
   </div>
 
   <%= f.submit "Update", class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 cursor-pointer" %>
