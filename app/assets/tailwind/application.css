@@ -19,3 +19,19 @@
   background-color: var(--color-blue-100);
   text-decoration: none;
 }
+
+/* A dialog centres itself with `margin: auto`, which puts a command palette
+   in the middle of the screen — too far from where you're looking when you
+   hit ⌘K. This sits it near the top instead. */
+.palette {
+  margin: 12vh auto auto;
+}
+
+.palette-item {
+  cursor: pointer;
+}
+
+.palette-item:hover,
+.palette-item[aria-selected="true"] {
+  background-color: var(--color-gray-100);
+}

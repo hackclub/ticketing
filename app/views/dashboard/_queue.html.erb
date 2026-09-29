@@ -1,7 +1,1 @@
-<% if tickets.empty? %>
-  <p class="text-gray-500">Nothing outstanding right now.</p>
-<% else %>
-  <div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
-    <%= render partial: "dashboard/queue_row", collection: tickets, as: :ticket %>
-  </div>
-<% end %>
+<%= render "tickets/list", tickets: tickets, empty: "Nothing outstanding right now." %>

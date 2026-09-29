@@ -17,7 +17,8 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
   test "every page a requester can reach renders" do
     sign_in(users(:requester))
 
-    [ root_path, new_ticket_path, ticket_path(tickets(:website_bug)), settings_path ].each do |path|
+    [ root_path, new_ticket_path, ticket_path(tickets(:website_bug)), settings_path,
+      tickets_path, tickets_path(status: "closed"), tickets_path(status: "all"), search_path ].each do |path|
       get path
       assert_response :success, "#{path} did not render"
     end
@@ -72,7 +73,10 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
       edit_admin_service_path(services(:website)),
       edit_admin_topic_path(topics(:bug)),
       admin_users_path,
-      admin_user_path(users(:requester))
+      admin_user_path(users(:requester)),
+      tickets_path,
+      tickets_path(status: "closed"),
+      search_path
     ].each do |path|
       get path
       assert_response :success, "#{path} did not render"

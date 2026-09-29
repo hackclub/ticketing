@@ -1,0 +1,29 @@
+<%# ⌘K from anywhere. The results are a Turbo frame, so the searching itself
+    is ordinary Rails — the controller only opens, closes, debounces and
+    moves the highlight. %>
+<dialog data-command-palette-target="dialog"
+        data-action="close->command-palette#closed click->command-palette#clickOutside"
+        class="palette w-[min(36rem,calc(100vw-2rem))] rounded-xl shadow-2xl p-0 backdrop:bg-gray-900/40">
+  <form action="<%= search_path %>" method="get" role="search"
+        data-turbo-frame="search_results"
+        data-command-palette-target="form"
+        data-action="input->command-palette#search submit->command-palette#follow">
+    <input type="search" name="q" autocomplete="off" placeholder="Search tickets, people and pages…"
+           aria-label="Search"
+           data-command-palette-target="input"
+           data-action="keydown->command-palette#navigate"
+           class="w-full border-0 border-b border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden">
+  </form>
+
+  <div class="max-h-[60vh] overflow-y-auto pb-2"
+       data-command-palette-target="results"
+       data-action="turbo:frame-load->command-palette#highlightFirst">
+    <turbo-frame id="search_results" src="<%= search_path %>" loading="lazy"></turbo-frame>
+  </div>
+
+  <p class="border-t border-gray-100 px-4 py-2 text-xs text-gray-400 flex items-center gap-3">
+    <span><kbd class="font-sans">↑</kbd> <kbd class="font-sans">↓</kbd> to move</span>
+    <span><kbd class="font-sans">↵</kbd> to open</span>
+    <span><kbd class="font-sans">esc</kbd> to close</span>
+  </p>
+</dialog>

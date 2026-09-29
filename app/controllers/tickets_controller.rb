@@ -4,6 +4,19 @@ class TicketsController < ApplicationController
   before_action :set_ticket, only: [ :show, :update ]
   before_action :authorize_ticket!, only: [ :show, :update ]
 
+  # Tabs rather than a status dropdown: "what's live" and "what's finished"
+  # are the only two questions anyone actually asks of a ticket list.
+  FILTERS = {
+    "open" => "Open",
+    "closed" => "Closed",
+    "all" => "All"
+  }.freeze
+
+  def index
+    @filter = FILTERS.key?(params[:status]) ? params[:status] : "open"
+    @tickets = filtered_tickets
+  end
+
   def new
     @ticket = Ticket.new
     @services = Service.active.fallback_last.includes(:topics)
@@ -45,6 +58,20 @@ class TicketsController < ApplicationController
 
   private
 
+  # Admins see everyone's; everyone else sees their own. Open tickets keep
+  # the queue's ordering (blocked last, deadlines first); closed ones are
+  # most-recently-touched first, which is how you look for what you just did.
+  def filtered_tickets
+    scope = admin? ? Ticket.all : current_user.tickets
+    scope = scope.includes(:user, :service, :topic, :blockers)
+
+    case @filter
+    when "open" then admin? ? scope.needs_attention.ordered_for_admin : scope.needs_attention.order(created_at: :desc)
+    when "closed" then scope.closed.order(updated_at: :desc)
+    else scope.order(created_at: :desc)
+    end
+  end
+
   def respond_with_status_change(updated, error:)
     respond_to do |format|
       format.turbo_stream { render turbo_stream: status_streams(updated, error) }
@@ -65,6 +92,7 @@ class TicketsController < ApplicationController
       turbo_stream.replace(helpers.dom_id(@ticket, :status), partial: "tickets/status_badge", locals: { ticket: @ticket }),
       turbo_stream.replace(helpers.dom_id(@ticket, :status_note), partial: "tickets/status_note", locals: { ticket: @ticket }),
       turbo_stream.replace(helpers.dom_id(@ticket, :status_form), partial: "tickets/status_form", locals: { ticket: @ticket }),
+      turbo_stream.replace(helpers.dom_id(@ticket, :row), partial: "tickets/row", locals: { ticket: @ticket }),
       # Finishing a ticket can unblock others, and a closed ticket stops
       # being overdue, so the scheduling box and its badge move too.
       *scheduling_streams(@ticket)

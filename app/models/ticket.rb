@@ -58,6 +58,7 @@ class Ticket < ApplicationRecord
   validate :url_must_be_http_or_https
 
   scope :needs_attention, -> { where(status: [ :open, :in_progress ]) }
+  scope :closed, -> { where(status: [ :done, :wont_do ]) }
 
   # Whether anything unfinished is standing in this ticket's way, as SQL, so
   # the queue can sort on it without loading every ticket's blockers.

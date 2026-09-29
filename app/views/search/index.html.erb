@@ -1,0 +1,60 @@
+<% unless turbo_frame_request? %>
+  <h1 class="text-2xl font-bold mb-1">Search</h1>
+  <p class="text-gray-600 mb-4">Press <kbd class="font-sans border border-gray-300 rounded px-1">⌘K</kbd> anywhere for this without leaving the page.</p>
+
+  <form action="<%= search_path %>" method="get" role="search" class="mb-6">
+    <%= text_field_tag :q, @term, type: "search", autofocus: true, class: input_classes,
+          placeholder: "Search tickets, people and pages…", "aria-label": "Search" %>
+  </form>
+
+  <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 pb-2">
+<% end %>
+
+<turbo-frame id="search_results">
+  <% if @tickets.empty? && @people.empty? && @destinations.empty? %>
+    <p class="px-4 py-8 text-center text-sm text-gray-500">Nothing matches <span class="font-medium text-gray-700"><%= @term %></span>.</p>
+  <% end %>
+
+  <% if @tickets.any? %>
+    <p class="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+      <%= @term.blank? ? "Recently updated" : "Tickets" %>
+    </p>
+    <% @tickets.each do |ticket| %>
+      <%= link_to ticket_path(ticket), class: "palette-item flex items-center gap-3 px-4 py-2",
+            data: { turbo_frame: "_top", palette_item: "", action: "click->command-palette#close" } do %>
+        <span class="text-xs text-gray-400 font-mono shrink-0">#<%= ticket.id %></span>
+        <span class="flex-1 min-w-0 truncate text-sm text-gray-900"><%= ticket.title %></span>
+        <% if admin? %>
+          <span class="text-xs text-gray-400 truncate shrink-0 max-w-[10rem]"><%= ticket.user.name.presence || ticket.user.email %></span>
+        <% end %>
+        <span class="text-xs px-2 py-0.5 rounded-full shrink-0 <%= status_badge_classes(ticket.status) %>"><%= ticket.status_label %></span>
+      <% end %>
+    <% end %>
+  <% end %>
+
+  <% if @people.any? %>
+    <p class="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">People</p>
+    <% @people.each do |person| %>
+      <%= link_to admin_user_path(person), class: "palette-item flex items-center gap-3 px-4 py-2",
+            data: { turbo_frame: "_top", palette_item: "", action: "click->command-palette#close" } do %>
+        <%= avatar_tag(person, css_class: "size-6 rounded-full shrink-0") %>
+        <span class="flex-1 min-w-0 truncate text-sm text-gray-900"><%= person.name.presence || person.email %></span>
+        <% if person.priority_boost? %>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">VIP</span>
+        <% end %>
+      <% end %>
+    <% end %>
+  <% end %>
+
+  <% if @destinations.any? %>
+    <p class="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Go to</p>
+    <% @destinations.each do |label, path| %>
+      <%= link_to label, path, class: "palette-item block px-4 py-2 text-sm text-gray-900",
+            data: { turbo_frame: "_top", palette_item: "", action: "click->command-palette#close" } %>
+    <% end %>
+  <% end %>
+</turbo-frame>
+
+<% unless turbo_frame_request? %>
+  </div>
+<% end %>

@@ -1,0 +1,7 @@
+<% if tickets.empty? %>
+  <p class="text-gray-500"><%= empty %></p>
+<% else %>
+  <div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
+    <%= render partial: "tickets/row", collection: tickets, as: :ticket %>
+  </div>
+<% end %>

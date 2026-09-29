@@ -5,11 +5,14 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
 
-  resources :tickets, only: [ :new, :create, :show, :update ] do
+  resources :tickets, only: [ :index, :new, :create, :show, :update ] do
     resources :notes, only: [ :create, :destroy ], controller: "ticket_notes"
     resources :blocks, only: [ :create, :destroy ], controller: "ticket_blocks"
     resource :deadline, only: [ :update, :destroy ], controller: "ticket_deadlines"
   end
+
+  # Backs the ⌘K palette. GET so a result list is just a page.
+  get "/search", to: "search#index", as: :search
 
   namespace :admin do
     # Services and topics are managed together on the services page, so there

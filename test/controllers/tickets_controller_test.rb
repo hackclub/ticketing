@@ -24,6 +24,52 @@ class TicketsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to ticket_path(Ticket.last)
   end
 
+  test "the index defaults to what is still open" do
+    sign_in(users(:amber))
+    closed = Ticket.create!(user: users(:requester), service: services(:website), topic: topics(:bug),
+                            title: "Already finished", message: "x", status: :done)
+
+    get tickets_path
+
+    assert_response :success
+    assert_match tickets(:website_bug).title, response.body
+    assert_no_match(/Already finished/, response.body)
+  end
+
+  test "the closed tab shows done and won't-do together" do
+    sign_in(users(:amber))
+    done = Ticket.create!(user: users(:requester), service: services(:website), topic: topics(:bug),
+                          title: "Shipped it", message: "x", status: :done)
+    wont = Ticket.create!(user: users(:requester), service: services(:website), topic: topics(:bug),
+                          title: "Not doing that", message: "x", status: :wont_do)
+
+    get tickets_path(status: "closed")
+
+    assert_match "Shipped it", response.body
+    assert_match "Not doing that", response.body
+    assert_no_match(/#{tickets(:website_bug).title}/, response.body)
+  end
+
+  test "a requester's index only has their own tickets" do
+    sign_in(users(:requester))
+    Ticket.create!(user: users(:amber), service: services(:slack), topic: topics(:access_request),
+                   title: "Amber's own thing", message: "x", status: :done)
+
+    get tickets_path(status: "all")
+
+    assert_response :success
+    assert_match tickets(:website_bug).title, response.body
+    assert_no_match(/Amber's own thing/, response.body)
+  end
+
+  test "a made-up filter falls back to open rather than erroring" do
+    sign_in(users(:requester))
+
+    get tickets_path(status: "nonsense")
+
+    assert_response :success
+  end
+
   test "a non-owner cannot view someone else's ticket" do
     other_user = User.create!(sub: "sub_other", email: "other@example.com", name: "Other")
     sign_in(other_user)

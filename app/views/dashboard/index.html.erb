@@ -13,33 +13,23 @@
     <% end %>
   </div>
 <% elsif admin? %>
-  <h1 class="text-2xl font-bold mb-1">Everything on your plate</h1>
-  <p class="text-gray-600 mb-6">Open and in-progress tickets, VIP requesters and higher priority first.</p>
+  <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
+    <div>
+      <h1 class="text-2xl font-bold mb-1">Everything on your plate</h1>
+      <p class="text-gray-600">Open and in-progress tickets, VIP requesters and higher priority first.</p>
+    </div>
+    <%= link_to "Closed tickets →", tickets_path(status: "closed"), class: "text-sm text-gray-600 hover:text-gray-900 underline" %>
+  </div>
 
   <div id="queue"><%= render "dashboard/queue", tickets: @tickets %></div>
 <% else %>
-  <div class="flex items-center justify-between mb-6">
+  <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
     <h1 class="text-2xl font-bold">Your tickets</h1>
-    <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
+    <div class="flex items-center gap-4">
+      <%= link_to "Closed tickets →", tickets_path(status: "closed"), class: "text-sm text-gray-600 hover:text-gray-900 underline" %>
+      <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
+    </div>
   </div>
 
-  <% if @tickets.empty? %>
-    <p class="text-gray-500">You haven't filed anything yet.</p>
-  <% else %>
-    <div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
-      <% @tickets.each do |ticket| %>
-        <%= link_to ticket_path(ticket), class: "p-4 flex items-center justify-between gap-4 hover:bg-gray-50 block" do %>
-          <div class="min-w-0">
-            <p class="font-medium text-gray-900 truncate"><%= ticket.title %></p>
-            <p class="text-sm text-gray-500"><%= ticket.service.name %> &rsaquo; <%= ticket.topic.name %> &middot; <%= time_ago_in_words(ticket.created_at) %> ago</p>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <%= render "tickets/badges", ticket: ticket %>
-            <span class="text-xs px-2 py-0.5 rounded-full <%= priority_badge_classes(ticket.priority) %>"><%= ticket.priority.humanize %></span>
-            <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %>"><%= ticket.status_label %></span>
-          </div>
-        <% end %>
-      <% end %>
-    </div>
-  <% end %>
+  <%= render "tickets/list", tickets: @tickets, empty: "You haven't filed anything yet." %>
 <% end %>
