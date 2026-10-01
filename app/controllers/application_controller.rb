@@ -9,7 +9,7 @@ class ApplicationController < ActionController::Base
   before_action :require_login
   before_action :remember_who_is_acting
 
-  helper_method :current_user, :admin?, :owner?, :manages?, :everyone?
+  helper_method :current_user, :admin?, :owner?, :manages?, :everyone?, :filed_by_me?
 
   private
 
@@ -47,18 +47,30 @@ class ApplicationController < ActionController::Base
     ticket.managed_by?(current_user)
   end
 
-  # Everybody, admins included, sees their own queue: what's filed to them
-  # plus what they filed. An admin can ask for everyone's, but has to ask —
-  # running the tracker isn't a reason to have other people's work in the
-  # way of your own.
+  # Your queue is what's filed TO you — work you have to do. What you've
+  # asked of other people is a different question, and belongs under its own
+  # heading rather than mixed into the queue. Someone who takes no tickets
+  # has only ever asked, so that's all they see.
   def visible_tickets
     return Ticket.all if everyone?
+    return Ticket.where(user_id: current_user.id) if filed_by_me?
 
-    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
+    Ticket.owned_by(current_user)
   end
 
   def everyone?
     admin? && params[:scope] == "everyone"
+  end
+
+  def filed_by_me?
+    params[:scope] == "filed" || !owner?
+  end
+
+  # What the search reaches: your queue and anything you filed. An admin can
+  # open anybody's ticket by its link, but has to go looking for it rather
+  # than having it turn up while searching their own.
+  def readable_tickets
+    Ticket.where(owner_id: current_user.id).or(Ticket.where(user_id: current_user.id))
   end
 
   def require_login

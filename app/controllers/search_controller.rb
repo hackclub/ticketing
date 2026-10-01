@@ -20,7 +20,7 @@ class SearchController < ApplicationController
   private
 
   def matching_tickets
-    scope = visible_tickets.includes(:user, :owner, :service, :topic, :blockers)
+    scope = (everyone? ? Ticket.all : readable_tickets).includes(:user, :owner, :service, :topic, :blockers)
 
     # An empty box is a launcher, not a dead end: show what's been touched most
     # recently, since that's usually what you came back for.
@@ -50,6 +50,7 @@ class SearchController < ApplicationController
       [ "Open tickets", tickets_path(status: "open") ],
       [ "Closed tickets", tickets_path(status: "closed") ],
       [ "All tickets", tickets_path(status: "all") ],
+      [ "Tickets you filed", tickets_path(scope: "filed", status: "all") ],
       [ "Settings", settings_path ]
     ]
     list << [ "Services & topics", services_path ] if owner?

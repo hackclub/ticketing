@@ -134,6 +134,39 @@ class SecondOwnerTest < ActionDispatch::IntegrationTest
     assert_match ticket_path(theirs), response.body
   end
 
+  test "a ticket you filed to somebody else isn't in your queue" do
+    sign_in(users(:amber))
+    mine = tickets(:website_bug)
+    asked = ticket_for(@owner, requester: users(:amber), title: "Asked Bo for this")
+
+    get tickets_path(status: "all")
+    assert_match mine.title, response.body
+    assert_no_match(/#{ticket_path(asked)}/, response.body)
+
+    get board_path
+    assert_no_match(/#{ticket_path(asked)}/, response.body)
+  end
+
+  test "but it is under what you filed" do
+    sign_in(users(:amber))
+    asked = ticket_for(@owner, requester: users(:amber), title: "Asked Bo for this")
+
+    get tickets_path(scope: "filed", status: "all")
+
+    assert_match "Asked Bo for this", response.body
+    # That list is what you asked of other people, not your own queue.
+    assert_no_match(/#{ticket_path(tickets(:website_bug))}/, response.body)
+  end
+
+  test "somebody who takes no tickets still sees what they filed" do
+    sign_in(users(:requester))
+
+    get tickets_path(status: "all")
+
+    assert_response :success
+    assert_match tickets(:website_bug).title, response.body
+  end
+
   test "they manage their own services and nobody else's" do
     sign_in(@owner)
 

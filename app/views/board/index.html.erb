@@ -1,5 +1,7 @@
 <div class="flex items-center justify-between gap-4 mb-1 flex-wrap">
-  <h1 class="text-2xl font-bold"><%= everyone? ? "Everyone's board" : "Board" %></h1>
+  <h1 class="text-2xl font-bold">
+    <%= everyone? ? "Everyone's board" : filed_by_me? ? "What you filed" : "Board" %>
+  </h1>
   <div class="flex items-center gap-4">
     <%= render "tickets/scope_switch", path: ->(scope) { board_path(scope: scope) } %>
     <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>

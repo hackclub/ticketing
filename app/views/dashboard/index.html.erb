@@ -18,7 +18,10 @@
       <h1 class="text-2xl font-bold mb-1">Everything on your plate</h1>
       <p class="text-gray-600">Open and in-progress tickets, VIP requesters and higher priority first.</p>
     </div>
-    <%= link_to "Closed tickets →", tickets_path(status: "closed"), class: "text-sm text-gray-600 hover:text-gray-900 underline" %>
+    <div class="flex items-center gap-4 shrink-0">
+      <%= link_to "You filed →", tickets_path(scope: "filed", status: "all"), class: "text-sm text-gray-600 hover:text-gray-900 underline" %>
+      <%= link_to "Closed →", tickets_path(status: "closed"), class: "text-sm text-gray-600 hover:text-gray-900 underline" %>
+    </div>
   </div>
 
   <div id="queue"><%= render "dashboard/queue", tickets: @tickets %></div>
