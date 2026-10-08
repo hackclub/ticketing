@@ -65,6 +65,32 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_no_match(/<script/, html)
   end
 
+  test "an email address in a message becomes a mailto link" do
+    html = markdown("email me at amber@hackclub.com please")
+
+    assert_match %(<a href="mailto:amber@hackclub.com">amber@hackclub.com</a>), html
+  end
+
+  # The email case used to call up to a method Redcarpet only implements in C.
+  # That raised mid-render, which both 500'd the ticket and left Redcarpet's
+  # buffers unbalanced — the next render aborted the whole process.
+  test "a message with an email in it renders, twice, without taking the process with it" do
+    2.times do
+      assert_match "mailto:", markdown("write to someone@example.com about it")
+    end
+
+    assert_match "example.com/x", markdown("and [a link](https://example.com/x) after")
+  end
+
+  test "an email and a link in the same message both come out right" do
+    html = markdown("mail amber@hackclub.com or see https://example.com/x")
+
+    assert_match %(href="mailto:amber@hackclub.com"), html
+    assert_match %(href="https://example.com/x"), html
+    # A mailto isn't somewhere to send a new tab.
+    assert_no_match(/mailto:[^"]*" target/, html)
+  end
+
   test "a Slack mention is marked so it can be styled like one" do
     html = markdown("Hey [@Amber](#{SlackText.deep_link('U054VC2KM9P')}), thoughts?")
 

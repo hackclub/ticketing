@@ -31,10 +31,16 @@ module ApplicationHelper
       "<a #{attributes}>#{content}</a>"
     end
 
+    # Redcarpet implements its callbacks in C, so there is no Ruby method
+    # above this one to hand an email address to: `super` raises, the ticket
+    # 500s, and worse — the exception unwinds out of Redcarpet mid-render and
+    # leaves its internal buffer stack unbalanced, so a later render aborts
+    # the whole process. Both link types are written here instead.
     def autolink(url, link_type)
-      return super if link_type == :email
+      return link(url, nil, ERB::Util.html_escape(url)) unless link_type == :email
 
-      link(url, nil, ERB::Util.html_escape(url))
+      address = ERB::Util.html_escape(url)
+      %(<a href="mailto:#{address}">#{address}</a>)
     end
   end
 
