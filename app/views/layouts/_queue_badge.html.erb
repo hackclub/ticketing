@@ -1,0 +1,16 @@
+<%# The number on your plate. It's drawn onto the favicon and put in the tab
+    title by the favicon controller, which also polls so a tab left in the
+    background keeps up; a status change re-sends this over a Turbo Stream.
+    The pill stays in the DOM at zero, hidden, so a poll can bring it back. %>
+<% if (counts = queue_counts) %>
+  <% total = counts.values.sum %>
+  <span id="queue_badge"
+        data-controller="favicon"
+        data-favicon-open-value="<%= counts[:open] %>"
+        data-favicon-in-progress-value="<%= counts[:in_progress] %>"
+        data-favicon-url-value="<%= queue_count_path %>">
+    <%= link_to total, root_path, title: queue_summary(counts), data: { favicon_target: "count" },
+          class: "inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-600 text-white " \
+                 "text-xs font-semibold tabular-nums leading-none #{'hidden' unless total.positive?}" %>
+  </span>
+<% end %>

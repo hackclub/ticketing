@@ -9,7 +9,7 @@ class ApplicationController < ActionController::Base
   before_action :require_login
   before_action :remember_who_is_acting
 
-  helper_method :current_user, :admin?, :owner?, :manages?, :everyone?, :filed_by_me?
+  helper_method :current_user, :admin?, :owner?, :manages?, :everyone?, :filed_by_me?, :queue_counts
 
   private
 
@@ -60,6 +60,18 @@ class ApplicationController < ActionController::Base
 
   def everyone?
     admin? && params[:scope] == "everyone"
+  end
+
+  # How much is on your plate, by status — one query, shared by the badge in
+  # the nav, the tab title, the favicon and the dashboard heading. Nil for
+  # someone who takes no tickets, since there's nothing to count.
+  def queue_counts
+    return unless owner?
+
+    @queue_counts ||= begin
+      counts = Ticket.owned_by(current_user).needs_attention.group(:status).count
+      { open: counts.fetch("open", 0), in_progress: counts.fetch("in_progress", 0) }
+    end
   end
 
   def filed_by_me?

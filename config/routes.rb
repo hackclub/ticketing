@@ -13,6 +13,9 @@ Rails.application.routes.draw do
 
   get "/board", to: "board#index", as: :board
 
+  # Polled by the favicon, so a tab left in the background stays right.
+  get "/queue/count", to: "queue_counts#show", as: :queue_count
+
   # Backs the ⌘K palette. GET so a result list is just a page.
   get "/search", to: "search#index", as: :search
 

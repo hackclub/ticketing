@@ -1,1 +1,10 @@
-<%= render "tickets/list", tickets: tickets, empty: "Nothing outstanding right now." %>
+<%# The wrapper's id lives here rather than on the dashboard, since a stream
+    replaces this whole element: without it, the second status change on
+    the page would find nothing to replace. The count sits with the list so
+    the two re-render together. %>
+<div id="queue">
+  <% if (counts = queue_counts) %>
+    <p class="text-sm text-gray-500 mb-3"><%= queue_summary(counts) %></p>
+  <% end %>
+  <%= render "tickets/list", tickets: tickets, empty: "Nothing outstanding right now." %>
+</div>

@@ -95,6 +95,7 @@ class TicketsController < ApplicationController
       turbo_stream.append(helpers.dom_id(@ticket, :timeline), partial: "tickets/event",
                           locals: { event: @ticket.events.oldest_first.last }),
       turbo_stream.replace(helpers.dom_id(@ticket, :row), partial: "tickets/row", locals: { ticket: @ticket }),
+      queue_badge_stream,
       # Finishing a ticket can unblock others, and a closed ticket stops
       # being overdue, so the scheduling box and its badge move too.
       *scheduling_streams(@ticket)

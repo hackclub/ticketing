@@ -90,6 +90,18 @@ module ApplicationHelper
     team ? "#{url}&team=#{team}" : url
   end
 
+  # "(3) Tickets", the way a mail client does it, so a pinned tab says how
+  # much is waiting even where the favicon is too small to read.
+  def queue_title_prefix
+    total = queue_counts&.values&.sum.to_i
+    "(#{total})" if total.positive?
+  end
+
+  # "2 open, 1 in progress" — the split behind the single number.
+  def queue_summary(counts)
+    "#{pluralize(counts[:open], 'open ticket')}, #{counts[:in_progress]} in progress"
+  end
+
   def avatar_initial(user)
     (user&.name.presence || user&.email.to_s).to_s.first.to_s.upcase.presence || "?"
   end

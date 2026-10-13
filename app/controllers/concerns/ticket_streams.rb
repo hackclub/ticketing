@@ -10,8 +10,13 @@ module TicketStreams
     turbo_stream.replace(
       "queue",
       partial: "dashboard/queue",
-      locals: { tickets: Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic, :blockers) }
+      locals: { tickets: Ticket.owned_by(current_user).needs_attention.ordered_for_admin.includes(:user, :service, :topic, :blockers) }
     )
+  end
+
+  # The count in the nav, which the favicon and tab title follow.
+  def queue_badge_stream
+    turbo_stream.replace("queue_badge", partial: "layouts/queue_badge")
   end
 
   # The deadline and blocked badges sit in the page header, away from the box
