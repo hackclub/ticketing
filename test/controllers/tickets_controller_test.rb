@@ -149,12 +149,75 @@ class TicketsControllerTest < ActionDispatch::IntegrationTest
     assert ticket.reload.done?
   end
 
-  test "a non-admin cannot change a ticket's status" do
+  test "a requester can close their own ticket, and the owner hears about it rather than them" do
     sign_in(users(:requester))
     ticket = tickets(:website_bug)
 
-    patch ticket_path(ticket), params: { ticket: { status: "done" } }
+    assert_enqueued_email_with TicketMailer, :status_changed, args: [ ticket, users(:amber) ] do
+      patch ticket_path(ticket), params: { ticket: { status: "done", status_note: "Sorted itself out." } }
+    end
 
-    refute ticket.reload.done?
+    ticket.reload
+    assert ticket.done?
+    assert_equal "Sorted itself out.", ticket.status_note
+    assert_equal users(:requester), ticket.events.status_change.last.author
+  end
+
+  test "a requester can say their ticket doesn't need doing" do
+    sign_in(users(:requester))
+
+    patch ticket_path(tickets(:website_bug)), params: { ticket: { status: "wont_do" } }
+
+    assert tickets(:website_bug).reload.wont_do?
+  end
+
+  test "a requester can't reopen or start their ticket" do
+    sign_in(users(:requester))
+    ticket = tickets(:website_bug)
+
+    patch ticket_path(ticket), params: { ticket: { status: "in_progress" } }
+    assert_redirected_to ticket_path(ticket)
+    assert_match "Only Amber can start work on it", flash[:alert]
+    assert ticket.reload.open?
+
+    ticket.update!(status: :done)
+    patch ticket_path(ticket), params: { ticket: { status: "open" } }
+    assert_match "reopen", flash[:alert]
+    assert ticket.reload.done?
+  end
+
+  test "somebody else's requester still can't touch it" do
+    other = User.create!(sub: "x", email: "x@example.com", name: "X")
+    sign_in(other)
+
+    patch ticket_path(tickets(:website_bug)), params: { ticket: { status: "done" } }
+
+    assert tickets(:website_bug).reload.open?
+  end
+
+  test "the requester's page offers closing, and swaps it out once used" do
+    sign_in(users(:requester))
+    ticket = tickets(:website_bug)
+
+    get ticket_path(ticket)
+    assert_select "##{dom_id(ticket, :status_form)} button[value=done]"
+    assert_select "##{dom_id(ticket, :status_form)} button[value=wont_do]"
+    assert_select "##{dom_id(ticket, :status_form)} select", false
+
+    patch ticket_path(ticket), params: { ticket: { status: "done" } }, as: :turbo_stream
+
+    assert_response :success
+    assert_match %(action="replace" target="#{dom_id(ticket, :status_form)}"), response.body
+    assert_no_match(/button[^>]*value="done"/, response.body)
+    assert_no_match(/Update status/, response.body)
+  end
+
+  test "the owner's status change still goes to the requester" do
+    sign_in(users(:amber))
+    ticket = tickets(:website_bug)
+
+    assert_enqueued_email_with TicketMailer, :status_changed, args: [ ticket, users(:requester) ] do
+      patch ticket_path(ticket), params: { ticket: { status: "done" } }
+    end
   end
 end

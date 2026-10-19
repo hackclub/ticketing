@@ -54,6 +54,15 @@ class Ticket < ApplicationRecord
     STATUS_SENTENCES.fetch(status, status.humanize.downcase)
   end
 
+  # The first line of a status notification, from the reader's side: "Your
+  # ticket is now done" to the requester, "Bo closed their ticket (won't do)"
+  # to the owner.
+  def status_headline(recipient)
+    return "Your ticket is now #{status_sentence}" if recipient.id == user_id
+
+    "#{user.display_name} closed their ticket (#{status_label.downcase})"
+  end
+
   # The service decides who the ticket is for, so the two can never disagree
   # and no form has to ask twice.
   before_validation :inherit_owner_from_service
@@ -66,6 +75,9 @@ class Ticket < ApplicationRecord
   scope :needs_attention, -> { where(status: [ :open, :in_progress ]) }
   scope :owned_by, ->(user) { where(owner_id: user.id) }
   scope :closed, -> { where(status: [ :done, :wont_do ]) }
+
+  # The two ways a ticket ends, whoever says so.
+  CLOSED_STATUSES = %w[done wont_do].freeze
 
   # Whether anything unfinished is standing in this ticket's way, as SQL, so
   # the queue can sort on it without loading every ticket's blockers.
@@ -97,8 +109,8 @@ class Ticket < ApplicationRecord
   # controllers, so a ticket filed or changed from Slack behaves exactly like
   # one from the web.
   after_create_commit :notify_created
-  after_update_commit :notify_status_changed, if: :saved_change_to_status?
   after_update_commit :record_status_change, if: :saved_change_to_status?
+  after_update_commit :notify_status_changed, if: :saved_change_to_status?
 
   # --- deadlines ---------------------------------------------------------
 
@@ -180,6 +192,21 @@ class Ticket < ApplicationRecord
     user.present? && (user.admin? || owner_id == user.id)
   end
 
+  # Whoever a ticket is for can move it anywhere. Whoever filed it can only
+  # call it finished — it sorted itself out, or they don't need it any more.
+  # Reopening, or saying work has started, stays with the person doing it.
+  def status_settable_by?(user, status)
+    return false if user.nil?
+    return true if managed_by?(user)
+
+    user_id == user.id && CLOSED_STATUSES.include?(status.to_s)
+  end
+
+  # Who last moved this, for telling the other side about it.
+  def status_changed_by
+    Current.user || owner
+  end
+
   def visible_to?(user)
     user.present? && (managed_by?(user) || user_id == user.id)
   end
@@ -200,9 +227,12 @@ class Ticket < ApplicationRecord
     SlackNotificationJob.perform_later(id, "created")
   end
 
+  # Told to whoever didn't make the change: the requester when the owner
+  # moves it, the owner when the requester closes it themselves.
   def notify_status_changed
-    TicketMailer.status_changed(self).deliver_later
-    SlackNotificationJob.perform_later(id, "status_changed")
+    recipient = other_party(status_changed_by)
+    TicketMailer.status_changed(self, recipient).deliver_later
+    SlackNotificationJob.perform_later(id, "status_changed", nil, recipient.id)
   end
 
   # Written here rather than at each call site so a status changed from the
@@ -210,7 +240,7 @@ class Ticket < ApplicationRecord
   def record_status_change(*)
     before, after = saved_change_to_status
     events.create!(
-      kind: :status_change, author: Current.user || owner, body: status_note.presence,
+      kind: :status_change, author: status_changed_by, body: status_note.presence,
       from_status: self.class.statuses[before], to_status: self.class.statuses[after]
     )
   end

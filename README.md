@@ -54,9 +54,11 @@ claude mcp add --transport http tickets https://amber.hackclub.com/mcp \
 ```
 
 Tools are scoped to whoever the token belongs to. Everyone gets
-`list_services`, `create_ticket`, `list_my_tickets` and `get_ticket`; admins
-also get `my_queue`, `update_ticket_status`, and taxonomy management
-(`create_service`, `update_service`, `create_topic`, `update_topic`).
+`list_services`, `create_ticket`, `list_my_tickets`, `get_ticket`,
+`add_comment` and `update_ticket_status` (on a ticket you filed, only to
+close it); people who take tickets also get `my_queue` and taxonomy
+management (`create_service`, `update_service`, `create_topic`,
+`update_topic`).
 Non-admins don't just get refused on the admin tools — the tools aren't listed
 for them at all.
 

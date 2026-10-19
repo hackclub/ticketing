@@ -88,7 +88,7 @@ class TicketTest < ActiveSupport::TestCase
     ticket = Ticket.create!(valid_attributes)
 
     assert_enqueued_emails 1 do
-      assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed" ] do
+      assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed", nil, ticket.user_id ] do
         ticket.update!(status: :wont_do)
       end
     end
@@ -106,7 +106,7 @@ class TicketTest < ActiveSupport::TestCase
     ticket = Ticket.create!(valid_attributes)
 
     assert_enqueued_emails 1 do
-      assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed" ] do
+      assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed", nil, ticket.user_id ] do
         ticket.update!(status: :done)
       end
     end
@@ -321,5 +321,33 @@ class TicketTest < ActiveSupport::TestCase
     end
 
     assert_equal [ owner.email ], ActionMailer::Base.deliveries.last.to
+  end
+
+  test "the owner can set any status, the requester can only close" do
+    ticket = tickets(:website_bug)
+
+    Ticket.statuses.each_key { |status| assert ticket.status_settable_by?(users(:amber), status), status }
+    assert ticket.status_settable_by?(users(:requester), "done")
+    assert ticket.status_settable_by?(users(:requester), "wont_do")
+    refute ticket.status_settable_by?(users(:requester), "open")
+    refute ticket.status_settable_by?(users(:requester), "in_progress")
+    refute ticket.status_settable_by?(nil, "done")
+    refute ticket.status_settable_by?(another_owner, "done")
+  end
+
+  test "a status change is announced to whoever didn't make it" do
+    ticket = tickets(:website_bug)
+
+    Current.user = users(:requester)
+    assert_enqueued_with(job: SlackNotificationJob, args: [ ticket.id, "status_changed", nil, users(:amber).id ]) do
+      ticket.update!(status: :done)
+    end
+
+    Current.user = users(:amber)
+    assert_enqueued_with(job: SlackNotificationJob, args: [ ticket.id, "status_changed", nil, users(:requester).id ]) do
+      ticket.update!(status: :open)
+    end
+  ensure
+    Current.user = nil
   end
 end

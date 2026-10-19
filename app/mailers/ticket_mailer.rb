@@ -14,9 +14,17 @@ class TicketMailer < ApplicationMailer
          subject: "#{@author.display_name} on \"#{@ticket.title}\""
   end
 
-  def status_changed(ticket)
+  # To the requester normally; to the owner when the requester closed it.
+  def status_changed(ticket, recipient = ticket.user)
     @ticket = ticket
+    @headline = ticket.status_headline(recipient)
 
-    mail to: ticket.user.email, subject: "Your ticket \"#{ticket.title}\" is now #{ticket.status_sentence}"
+    subject = if recipient.id == ticket.user_id
+      "Your ticket \"#{ticket.title}\" is now #{ticket.status_sentence}"
+    else
+      "#{ticket.user.display_name} closed \"#{ticket.title}\" (#{ticket.status_label.downcase})"
+    end
+
+    mail to: recipient.email, subject: subject
   end
 end

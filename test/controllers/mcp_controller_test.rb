@@ -42,7 +42,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_includes names, "create_ticket"
     assert_includes names, "list_my_tickets"
     refute_includes names, "my_queue"
-    refute_includes names, "update_ticket_status"
+    # Offered to everyone, since you can close what you filed.
+    assert_includes names, "update_ticket_status"
   end
 
   test "an admin also sees the queue tools" do
@@ -132,12 +133,29 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal "open", ticket.reload.status
   end
 
-  test "a non-admin cannot update a status" do
+  test "a requester can close their own ticket but not start it" do
     ticket = tickets(:website_bug)
+
+    call_tool("update_ticket_status", { "id" => ticket.id, "status" => "in_progress" }, token: @requester_token)
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "only they can set it to in_progress", text_content
+    assert ticket.reload.open?
+
+    call_tool("update_ticket_status", { "id" => ticket.id, "status" => "done", "note" => "Fixed itself." }, token: @requester_token)
+    refute response.parsed_body.dig("result", "isError")
+    assert_match "Amber will get an email", text_content
+    assert ticket.reload.done?
+    assert_equal "Fixed itself.", ticket.status_note
+  end
+
+  test "a requester can't touch somebody else's ticket at all" do
+    owner = another_owner
+    ticket = ticket_for(owner, requester: owner)
 
     call_tool("update_ticket_status", { "id" => ticket.id, "status" => "done" }, token: @requester_token)
 
-    refute ticket.reload.done?
+    assert response.parsed_body.dig("result", "isError")
+    assert ticket.reload.open?
   end
 
   test "an admin can create a service with topics" do
@@ -510,7 +528,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
               token: owner.regenerate_api_token!)
 
     assert response.parsed_body.dig("result", "isError")
-    assert_match "isn't yours", text_content
+    # Not even whose it is: they can't see the ticket, so they're told nothing about it.
+    assert_match "don't have access", text_content
     assert_equal "open", tickets(:website_bug).reload.status
   end
 

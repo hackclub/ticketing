@@ -39,16 +39,16 @@ class TicketsController < ApplicationController
   end
 
   def update
-    unless manages?(@ticket)
-      return redirect_to @ticket, alert: "Only the person a ticket is for can update its status."
-    end
-
     status = status_params[:status]
 
     # Assigning an unknown value to an enum raises rather than failing
     # validation, so a stale form or a hand-rolled request would 500.
     unless Ticket.statuses.key?(status)
       return respond_with_status_change(false, error: "#{status.inspect} isn't a status")
+    end
+
+    unless @ticket.status_settable_by?(current_user, status)
+      return redirect_to @ticket, alert: status_refusal(status)
     end
 
     # The note is assigned even when the form didn't send one, so a quick status
@@ -73,6 +73,14 @@ class TicketsController < ApplicationController
     end
   end
 
+  # A requester gets told what they can do instead of just "no".
+  def status_refusal(status)
+    return "Only the person a ticket is for can update its status." unless @ticket.user_id == current_user.id
+
+    verb = status == "open" ? "reopen it" : "start work on it"
+    "Only #{@ticket.owner.display_name} can #{verb}. You can mark your ticket done or won't do."
+  end
+
   def respond_with_status_change(updated, error:)
     respond_to do |format|
       format.turbo_stream { render turbo_stream: status_streams(updated, error) }
@@ -91,7 +99,8 @@ class TicketsController < ApplicationController
 
     streams + [
       turbo_stream.replace(helpers.dom_id(@ticket, :status), partial: "tickets/status_badge", locals: { ticket: @ticket }),
-      turbo_stream.replace(helpers.dom_id(@ticket, :status_form), partial: "tickets/status_form", locals: { ticket: @ticket }),
+      turbo_stream.replace(helpers.dom_id(@ticket, :status_form),
+                           partial: manages?(@ticket) ? "tickets/status_form" : "tickets/close_form", locals: { ticket: @ticket }),
       turbo_stream.append(helpers.dom_id(@ticket, :timeline), partial: "tickets/event",
                           locals: { event: @ticket.events.oldest_first.last }),
       turbo_stream.replace(helpers.dom_id(@ticket, :row), partial: "tickets/row", locals: { ticket: @ticket }),

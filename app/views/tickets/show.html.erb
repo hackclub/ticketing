@@ -47,6 +47,8 @@
   <% if manages?(@ticket) %>
     <%= render "tickets/scheduling", ticket: @ticket %>
     <%= render "tickets/status_form", ticket: @ticket %>
+  <% else %>
+    <%= render "tickets/close_form", ticket: @ticket %>
   <% end %>
 
   <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mt-8 mb-3">Timeline</h2>

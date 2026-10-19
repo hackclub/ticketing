@@ -26,13 +26,14 @@ class SlackNotifier
       dm(ticket.owner.slack_id, "New ticket: #{ticket.title}", "slack/notifications/ticket_created", ticket: ticket)
     end
 
-    def ticket_status_changed(ticket)
-      return if ticket.user.slack_id.blank?
+    # To the requester normally; to the owner when the requester closed it.
+    def ticket_status_changed(ticket, recipient = ticket.user)
+      return if recipient.slack_id.blank?
 
-      dm(ticket.user.slack_id,
-         "Your ticket is now #{ticket.status_sentence}",
+      dm(recipient.slack_id,
+         ticket.status_headline(recipient),
          "slack/notifications/ticket_status_changed",
-         ticket: ticket)
+         ticket: ticket, recipient: recipient)
     end
 
     # A comment goes to whoever is on the other side of the conversation.

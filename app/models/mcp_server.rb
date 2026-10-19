@@ -118,6 +118,21 @@ class McpServer
           "properties" => { "id" => { "type" => "integer" } },
           "required" => [ "id" ]
         }
+      },
+      {
+        "name" => "update_ticket_status",
+        "description" => "Change a ticket's status. On a ticket you filed you can only close it (done or wont_do); " \
+                         "anything else is for the person it's for. WARNING: the optional note here is SENT to the " \
+                         "other side by email and Slack DM — for a private note use add_internal_note instead.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer" },
+            "status" => { "type" => "string", "enum" => Ticket.statuses.keys },
+            "note" => { "type" => "string", "description" => "Optional explanation sent to the other side" }
+          },
+          "required" => [ "id", "status" ]
+        }
       }
     ]
 
@@ -149,20 +164,6 @@ class McpServer
             "note" => { "type" => "string", "description" => "The note. Markdown is supported." }
           },
           "required" => [ "id", "note" ]
-        }
-      },
-      {
-        "name" => "update_ticket_status",
-        "description" => "Change a ticket's status. WARNING: the optional note here is SENT to the requester by " \
-                         "email and Slack DM — for a private note use add_internal_note instead.",
-        "inputSchema" => {
-          "type" => "object",
-          "properties" => {
-            "id" => { "type" => "integer" },
-            "status" => { "type" => "string", "enum" => Ticket.statuses.keys },
-            "note" => { "type" => "string", "description" => "Optional explanation sent to the requester" }
-          },
-          "required" => [ "id", "status" ]
         }
       },
       {
@@ -484,20 +485,26 @@ class McpServer
   end
 
   def update_ticket_status(args)
-    ticket, refusal = manage(args["id"])
-    return refusal if refusal
+    ticket = Ticket.find(args["id"])
+    return [ "You don't have access to ticket ##{ticket.id}." ] unless ticket.visible_to?(user)
 
     # Assigning an unknown enum value raises, so check before it reaches the model.
     unless Ticket.statuses.key?(args["status"])
       return [ "#{args['status'].inspect} isn't a status. Valid: #{Ticket.statuses.keys.join(', ')}." ]
     end
 
+    unless ticket.status_settable_by?(user, args["status"])
+      return [ "Ticket ##{ticket.id} is for #{ticket.owner.display_name}. You filed it, so you can mark it " \
+               "done or wont_do, but only they can set it to #{args['status']}." ]
+    end
+
     unless ticket.update(status: args["status"], status_note: args["note"].presence)
       return [ "Could not update it: #{ticket.errors.full_messages.to_sentence}" ]
     end
 
-    notified = ticket.user.slack_id.present? ? " #{ticket.user.name.presence || 'They'} will get an email and a Slack DM." : " They'll get an email."
-    "Ticket ##{ticket.id} is now #{ticket.status_sentence}.#{notified}"
+    recipient = ticket.other_party(user)
+    notified = recipient.slack_id.present? ? "will get an email and a Slack DM" : "will get an email"
+    "Ticket ##{ticket.id} is now #{ticket.status_sentence}. #{recipient.display_name} #{notified}."
   end
 
   def list_people

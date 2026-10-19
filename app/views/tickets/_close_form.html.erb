@@ -1,0 +1,21 @@
+<%# Whoever filed a ticket can call it finished — it sorted itself out, or
+    they don't need it any more — but not reopen or start it; that's for the
+    person it's for. Shares the status form's id so the same stream swaps it
+    out after a change, and the wrapper stays once there's nothing to offer. %>
+<div id="<%= dom_id(ticket, :status_form) %>">
+  <% if ticket.needs_attention? %>
+    <%= form_with model: ticket, url: ticket_path(ticket), method: :patch,
+          class: "bg-white border border-gray-200 rounded-lg p-4 space-y-3" do |f| %>
+      <p class="text-sm font-medium text-gray-700">Don't need this any more?</p>
+      <%= f.text_area :status_note, rows: 2, value: nil, placeholder: "Optional: it fixed itself, found another way…",
+            class: input_classes("text-sm") %>
+      <div class="flex items-center gap-2 flex-wrap">
+        <%= f.button "Mark as done", name: "ticket[status]", value: "done",
+              class: "bg-green-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-green-700 cursor-pointer" %>
+        <%= f.button "Doesn't need doing", name: "ticket[status]", value: "wont_do",
+              class: "bg-white text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-50 cursor-pointer" %>
+      </div>
+      <p class="text-xs text-gray-400"><%= ticket.owner.display_name %> gets an email and a Slack DM, and is the only one who can reopen it.</p>
+    <% end %>
+  <% end %>
+</div>

@@ -1,5 +1,8 @@
+# Rendered for the requester unless told otherwise.
+recipient = local_assigns[:recipient] || ticket.user
+
 section(
-  "Your ticket is now *#{ticket.status_sentence}*\n" \
+  "#{ticket.status_headline(recipient).sub(ticket.status_sentence, "*#{ticket.status_sentence}*")}\n" \
   "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*",
   markdown: true
 )
