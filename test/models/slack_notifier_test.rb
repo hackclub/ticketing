@@ -53,11 +53,53 @@ class SlackNotifierTest < ActiveSupport::TestCase
 
     rendered = ApplicationController.render(
       template: "slack/tickets/update", formats: [ :slack_modal ],
-      locals: { ticket: ticket, status: "in_progress" }
+      locals: { ticket: ticket, status: "in_progress", user: users(:amber) }
     )
 
     assert_match "Waiting on ##{ticket.blockers.first.id}", rendered
     assert_match "Clear it", rendered
+  end
+
+  test "the requester's closing modal has a note and nothing an owner would use" do
+    ticket = blocked_and_late
+    Current.user = users(:amber)
+    ticket.events.create!(kind: :internal_note, body: "Secret owner thoughts", author: users(:amber))
+    Current.user = nil
+
+    rendered = ApplicationController.render(
+      template: "slack/tickets/update", formats: [ :slack_modal ],
+      locals: { ticket: ticket, status: "done", user: users(:requester) }
+    )
+
+    assert_match "Close ticket", rendered
+    assert_match "Note for Amber", rendered
+    assert_no_match(/Clear it/, rendered)
+    assert_no_match(/Internal note/, rendered)
+    # Told something is in the way, but not whose ticket it is — same as the web.
+    assert_match "Waiting on 1 other ticket", rendered
+    assert_no_match(/The thing it waits on/, rendered)
+    assert_no_match(/Secret owner thoughts/, rendered)
+  end
+
+  test "the Home tab lets a requester close an open ticket, and only that" do
+    rendered = ApplicationController.render(
+      template: "slack/home/show", formats: [ :slack_message ],
+      locals: { user: users(:requester), tickets: users(:requester).tickets, slack_user_id: "U000REQ" }
+    )
+
+    assert_match "Close it", rendered
+    assert_match "#{tickets(:website_bug).id}:done", rendered
+    assert_match "#{tickets(:website_bug).id}:wont_do", rendered
+    assert_no_match(/#{tickets(:website_bug).id}:in_progress/, rendered)
+
+    tickets(:website_bug).update_columns(status: Ticket.statuses[:done])
+    rendered = ApplicationController.render(
+      template: "slack/home/show", formats: [ :slack_message ],
+      locals: { user: users(:requester), tickets: users(:requester).tickets.reload, slack_user_id: "U000REQ" }
+    )
+
+    assert_no_match(/Close it/, rendered)
+    assert_match "Reply", rendered
   end
 
   test "the new-ticket modal offers a deadline picker" do

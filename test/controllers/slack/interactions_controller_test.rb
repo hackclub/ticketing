@@ -410,4 +410,78 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
       }
     }
   end
+
+  test "a requester picking done from the Home tab gets the closing modal" do
+    users(:requester).update!(slack_id: "U000REQ")
+    ticket = tickets(:website_bug)
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "block_actions", trigger_id: "trigger-r1", user: { id: "U000REQ" },
+        actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:done" } } ]
+      )
+    end
+
+    view = client.calls[:views_open].sole[:view]
+    assert_equal "#{ticket.id}:done", view["private_metadata"]
+    assert_equal "Close ticket", view.dig("title", "text")
+    assert_no_match(/internal_note/, view.to_json)
+    assert ticket.reload.open?
+  end
+
+  test "a requester picking in progress gets no modal" do
+    users(:requester).update!(slack_id: "U000REQ")
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "block_actions", trigger_id: "trigger-r2", user: { id: "U000REQ" },
+        actions: [ { action_id: "set_status", selected_option: { value: "#{tickets(:website_bug).id}:in_progress" } } ]
+      )
+    end
+
+    assert_empty client.calls[:views_open]
+  end
+
+  test "a requester submitting the closing modal closes their ticket and tells the owner" do
+    users(:requester).update!(slack_id: "U000REQ")
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      assert_enqueued_email_with TicketMailer, :status_changed, args: [ ticket, users(:amber) ] do
+        slack_post slack_interactions_path, interaction_body(
+          type: "view_submission", user: { id: "U000REQ" },
+          view: {
+            callback_id: "update_ticket", private_metadata: "#{ticket.id}:wont_do",
+            state: { values: {
+              note: { note: { value: "Found another way." } },
+              internal_note: { internal_note: { value: "should be ignored" } }
+            } }
+          }
+        )
+      end
+    end
+
+    ticket.reload
+    assert ticket.wont_do?
+    assert_equal "Found another way.", ticket.status_note
+    assert_equal users(:requester), ticket.events.status_change.last.author
+    assert_empty ticket.events.internal_note
+  end
+
+  test "a requester submitting any other status changes nothing" do
+    users(:requester).update!(slack_id: "U000REQ")
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission", user: { id: "U000REQ" },
+        view: { callback_id: "update_ticket", private_metadata: "#{ticket.id}:in_progress", state: { values: {} } }
+      )
+    end
+
+    assert_response :success
+    assert ticket.reload.open?
+  end
 end

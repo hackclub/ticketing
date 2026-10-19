@@ -60,6 +60,16 @@ tickets.each do |ticket|
         initial_option: status_options[Ticket.statuses[ticket.status]]
       )
     )
+  elsif ticket.needs_attention?
+    # Whoever filed it can call it finished, but nothing more — so the menu
+    # only offers the two ways a ticket ends.
+    close_options = Ticket::CLOSED_STATUSES.map { |status| option(status_label.call(status), "#{ticket.id}:#{status}") }
+
+    section("#{text}  ·  #{status_label.call(ticket.status)}", markdown: true)
+    actions [
+      button("Reply", "comment_ticket", value: ticket.id.to_s),
+      select_menu("set_status", placeholder: "Close it…", options: close_options)
+    ]
   else
     section(
       "#{text}  ·  #{status_label.call(ticket.status)}",

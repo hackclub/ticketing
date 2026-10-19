@@ -1,5 +1,9 @@
-title "Update ticket"
-submit "Update"
+# Opened by whoever a ticket is for, with everything they can change — or by
+# whoever filed it, closing it, with only a note to send along.
+manage = ticket.managed_by?(user)
+
+title manage ? "Update ticket" : "Close ticket"
+submit manage ? "Update" : "Close"
 close "Cancel"
 callback "update_ticket"
 private_metadata "#{ticket.id}:#{status}"
@@ -11,13 +15,13 @@ if ticket.due_at.present? || ticket.blocked?
     mrkdwn_text(
       [
         ("⏰ Due #{ticket.due_on} — #{ticket.due_label}" if ticket.due_at.present?),
-        ("🚧 Waiting on #{ticket.outstanding_blockers.map(&:reference).join(', ')}" if ticket.blocked?)
+        ("🚧 Waiting on #{manage ? ticket.outstanding_blockers.map(&:reference).join(', ') : pluralize(ticket.outstanding_blockers.size, 'other ticket')}" if ticket.blocked?)
       ].compact.join("  ·  ")
     )
   ]
 end
 
-recent = ticket.events.oldest_first.includes(:author).last(5)
+recent = ticket.events.oldest_first.includes(:author).select { |event| event.visible_to?(user) }.last(5)
 
 if recent.any?
   context [ mrkdwn_text("*Lately*") ]
@@ -29,39 +33,44 @@ end
 
 divider
 
-input "Note for #{ticket.user.name.presence || 'them'} (optional)",
-      plain_text_input("note", multiline: true, placeholder: "Shipped in this morning's deploy."),
+input "Note for #{ticket.other_party(user).name.presence || 'them'} (optional)",
+      plain_text_input("note", multiline: true,
+                       placeholder: manage ? "Shipped in this morning's deploy." : "It sorted itself out, thanks."),
       block_id: "note",
       optional: true,
       hint: "Sent to them by DM and email."
 
-input "Deadline (optional)",
-      datetime_picker("due", initial_date_time: ticket.due_at&.to_i),
-      block_id: "due",
-      optional: true,
-      hint: ticket.due_at.present? ? "Currently due #{ticket.due_on}." : "Set one if this needs to land by a date."
+# Everything from here down is about the owner's plate, not the requester's.
+if manage
 
-# A datetimepicker can't be emptied, so clearing needs its own control.
-if ticket.due_at.present?
-  input "Remove the deadline",
-        checkboxes("clear_due", [ option("Clear it", "clear") ]),
-        block_id: "clear_due",
-        optional: true
-end
-
-blocker_candidates = ticket.blocker_candidates.limit(100)
-
-if blocker_candidates.any?
-  input "Waiting on (optional)",
-        select_menu("blocker", placeholder: "Pick a ticket this one is waiting on",
-                    options: blocker_candidates.map { |candidate| option(candidate.reference, candidate.id.to_s) }),
-        block_id: "blocker",
+  input "Deadline (optional)",
+        datetime_picker("due", initial_date_time: ticket.due_at&.to_i),
+        block_id: "due",
         optional: true,
-        hint: "Adds a link. Removing one is done on the web."
-end
+        hint: ticket.due_at.present? ? "Currently due #{ticket.due_on}." : "Set one if this needs to land by a date."
 
-input "Internal note (optional)",
-      plain_text_input("internal_note", multiline: true, placeholder: "Waiting on a reply from…"),
-      block_id: "internal_note",
-      optional: true,
-      hint: "Private. Only admins ever see this."
+  # A datetimepicker can't be emptied, so clearing needs its own control.
+  if ticket.due_at.present?
+    input "Remove the deadline",
+          checkboxes("clear_due", [ option("Clear it", "clear") ]),
+          block_id: "clear_due",
+          optional: true
+  end
+
+  blocker_candidates = ticket.blocker_candidates.limit(100)
+
+  if blocker_candidates.any?
+    input "Waiting on (optional)",
+          select_menu("blocker", placeholder: "Pick a ticket this one is waiting on",
+                      options: blocker_candidates.map { |candidate| option(candidate.reference, candidate.id.to_s) }),
+          block_id: "blocker",
+          optional: true,
+          hint: "Adds a link. Removing one is done on the web."
+  end
+
+  input "Internal note (optional)",
+        plain_text_input("internal_note", multiline: true, placeholder: "Waiting on a reply from…"),
+        block_id: "internal_note",
+        optional: true,
+        hint: "Private. Only admins ever see this."
+end

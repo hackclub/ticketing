@@ -91,12 +91,12 @@ module Slack
 
       ticket_id, status = action.dig("selected_option", "value").to_s.split(":")
       ticket = Ticket.find_by(id: ticket_id)
-      return if ticket.nil? || !ticket.managed_by?(user)
+      return if ticket.nil? || !ticket.status_settable_by?(user, status)
 
       view = render_to_string(
         template: "slack/tickets/update",
         formats: [ :slack_modal ],
-        locals: { ticket: ticket, status: status }
+        locals: { ticket: ticket, status: status, user: user }
       )
 
       slack_client.views_open(trigger_id: payload["trigger_id"], view: JSON.parse(view))
@@ -137,14 +137,17 @@ module Slack
       ticket = Ticket.find_by(id: ticket_id)
       values = payload.dig("view", "state", "values")
 
-      if ticket&.managed_by?(user) && Ticket.statuses.key?(status)
-        ticket.update(status: status, status_note: input(values, "note"), **deadline_change(values, ticket))
+      if ticket&.status_settable_by?(user, status) && Ticket.statuses.key?(status)
+        # A requester closing their own ticket gets the status and the note;
+        # the rest of the modal was never shown to them, and isn't theirs.
+        manage = ticket.managed_by?(user)
+        ticket.update(status: status, status_note: input(values, "note"), **(manage ? deadline_change(values, ticket) : {}))
 
         internal = input(values, "internal_note")
-        ticket.events.create(kind: :internal_note, body: internal, author: user) if internal.present?
+        ticket.events.create(kind: :internal_note, body: internal, author: user) if manage && internal.present?
 
         blocker_id = selected(values, "blocker")
-        ticket.blocked_links.create(blocker_ticket_id: blocker_id) if blocker_id.present?
+        ticket.blocked_links.create(blocker_ticket_id: blocker_id) if manage && blocker_id.present?
       end
 
       SlackHomeJob.perform_later(user.slack_id)
