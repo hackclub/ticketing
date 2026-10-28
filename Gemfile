@@ -69,7 +69,7 @@ end
 
 gem "redcarpet", "~> 3.6"
 
-gem "omniauth", "~> 2.1"
+gem "omniauth", "~> 2.3"
 
 gem "omniauth_openid_connect", "~> 0.8"
 
